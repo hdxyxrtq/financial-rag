@@ -1,0 +1,65 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+
+# 虚拟环境
+venv/
+.venv/
+env/
+
+# 环境变量（包含 API Key）
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# ChromaDB 持久化数据（通过 volume 挂载）
+data/chroma_db/
+
+# 处理后的缓存数据
+data/processed/
+
+# Streamlit secrets
+.streamlit/secrets.toml
+
+# pytest 缓存
+.pytest_cache/
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# 文档
+README.md
+LICENSE
+
+# 测试文件
+tests/
+
+# CI 配置
+.github/
+
+# Windows 启动脚本
+start.bat
+
+# 脚本输出
+*.lock
+requirements-lock.txt

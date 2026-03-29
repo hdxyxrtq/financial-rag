@@ -1,0 +1,10 @@
+[theme]
+# Bloomberg Terminal inspired — dark navy + gold accents
+primaryColor = "#C9A84C"
+backgroundColor = "#0A0E27"
+secondaryBackgroundColor = "#0D1421"
+textColor = "#E8E6E3"
+font = "sans serif"
+
+[server]
+headless = true

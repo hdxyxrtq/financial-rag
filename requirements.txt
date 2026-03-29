@@ -1,0 +1,30 @@
+# Web 框架
+streamlit>=1.28.0
+
+# 智谱 AI SDK
+zhipuai>=2.0.0
+
+# 向量数据库
+chromadb>=0.4.22
+
+# PDF 解析
+PyMuPDF>=1.23.0
+
+# Token 计数
+tiktoken>=0.5.0
+
+# 配置管理
+pyyaml>=6.0
+python-dotenv>=1.0.0
+
+# 混合检索
+rank_bm25>=0.2.2
+jieba>=0.42.1
+
+# RAG 评估
+ragas>=0.2.0
+datasets>=2.14.0
+langchain-openai>=0.1.0
+
+# 测试
+pytest>=7.0.0

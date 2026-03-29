@@ -1,0 +1,65 @@
+# LLM 模型配置
+llm:
+  model: "glm-4-flash"        # 模型名称（glm-4-flash / glm-4 / glm-4-plus）
+  temperature: 0.7             # 生成温度
+  max_tokens: 2048             # 最大生成 token 数
+  top_p: 0.9                   # nucleus sampling
+
+# Embedding 模型配置
+embedding:
+  model: "embedding-3"         # Embedding 模型名称
+  batch_size: 20               # 批量处理大小
+
+# 文本分块配置
+chunker:
+  chunk_size: 512              # 分块大小（tokens）
+  chunk_overlap: 100           # 块重叠（tokens）
+  separator: "\n\n"            # 段落分隔符
+  strategy: "paragraph"        # 分块策略："paragraph"（按段落）或 "title"（按标题/章节）
+  title_chunk_size: 1024       # 按标题分块时单章节最大 token 数
+  title_patterns:              # 按标题分块时的标题正则模式
+    - "^#{1,3}\\s+.+"
+    - "^[一二三四五六七八九十]+、.+"
+    - "^第[一二三四五六七八九十百]+[章节篇].+"
+    - "^\\d+[.、]\\s*.+"
+
+# 检索配置
+retriever:
+  top_k: 5                     # 检索返回数量
+  score_threshold: 0.5         # 相似度阈值
+
+# ChromaDB 配置
+vectorstore:
+  persist_directory: "data/chroma_db"  # 持久化目录
+  collection_name: "financial_docs"     # 集合名称
+
+# RAG Pipeline 配置
+rag:
+  max_context_tokens: 4000   # 检索文档在上下文中的最大 token 数
+  query_rewrite: false       # 是否启用 Query Rewriting（多轮对话指代消解）
+
+# 应用配置
+app:
+  title: "Financial RAG - 金融知识库问答"
+  page_title: "金融 RAG 问答系统"
+
+# 混合检索配置
+hybrid:
+  enabled: true
+  strategy: "hybrid"              # vector / bm25 / hybrid
+  rrf_k: 60
+  vector_weight: 0.6
+  bm25_weight: 0.4
+  bm25_fetch_k: 30
+  vector_fetch_k: 30
+
+# 重排序配置
+reranker:
+  enabled: false
+  retrieve_n: 20
+  top_n: 5
+  min_score: 0.0
+
+# 日志配置
+logging:
+  level: "INFO"              # 日志级别：DEBUG / INFO / WARNING / ERROR
