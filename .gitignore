@@ -34,3 +34,14 @@ data/processed/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Tool caches
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# Benchmark 生成的临时数据
+screenshots/rag_eval_results.csv
+
+# 原始文档数据（本地知识库）
+data/raw/

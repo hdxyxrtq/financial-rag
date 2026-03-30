@@ -60,9 +60,11 @@ DEFAULT_COLLECTION = "financial_docs"
 # 数据结构
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class LatencyRecord:
     """单次检索 + 生成延迟记录。"""
+
     retrieve_ms: float = 0.0
     total_ms: float = 0.0
 
@@ -70,6 +72,7 @@ class LatencyRecord:
 @dataclass
 class BenchmarkResult:
     """单次配置的 benchmark 结果。"""
+
     label: str
     strategy: str
     reranker: bool
@@ -81,6 +84,7 @@ class BenchmarkResult:
 # ---------------------------------------------------------------------------
 # Pipeline 构建
 # ---------------------------------------------------------------------------
+
 
 def _build_pipeline(
     api_key: str,
@@ -119,7 +123,9 @@ def _build_pipeline(
             vector_fetch_k=30,
         )
         base_retriever = Retriever(
-            embedder, store, RetrieverConfig(
+            embedder,
+            store,
+            RetrieverConfig(
                 top_k=hybrid_cfg.vector_fetch_k,
                 score_threshold=0.0,
             ),
@@ -133,9 +139,11 @@ def _build_pipeline(
         )
     else:
         retriever = Retriever(
-            embedder, store, RetrieverConfig(
+            embedder,
+            store,
+            RetrieverConfig(
                 top_k=5,
-                score_threshold=0.5,
+                score_threshold=0.3,
             ),
         )
 
@@ -161,14 +169,18 @@ def _build_pipeline(
             pass  # HybridRetriever 用 fetch_k 控制
         else:
             retriever = Retriever(
-                embedder, store, RetrieverConfig(
+                embedder,
+                store,
+                RetrieverConfig(
                     top_k=20,
                     score_threshold=0.0,
                 ),
             )
 
     return RAGPipeline(
-        retriever, llm, RAGConfig(max_context_tokens=4000),
+        retriever,
+        llm,
+        RAGConfig(max_context_tokens=4000),
         reranker=reranker,
         reranker_config=reranker_cfg,
     )
@@ -177,6 +189,7 @@ def _build_pipeline(
 # ---------------------------------------------------------------------------
 # 延迟测量
 # ---------------------------------------------------------------------------
+
 
 def _run_with_latency(
     pipeline: RAGPipeline,
@@ -198,6 +211,7 @@ def _run_with_latency(
 # ---------------------------------------------------------------------------
 # 单次配置评测
 # ---------------------------------------------------------------------------
+
 
 def _run_eval_config(
     api_key: str,
@@ -229,15 +243,16 @@ def _run_eval_config(
         all_contexts.append([src.get("content", "") for src in result.get("sources", [])])
         latencies.append(record)
 
-    # 提取 references
-    references = [s.get("reference", "") for s in eval_samples if s.get("reference")]
-    ref_list = references if references else None
+    questions = [s["question"] for s in eval_samples]
+    references = [s.get("reference", "") for s in eval_samples]
+    has_any_ref = any(r.strip() for r in references)
+    ref_list = references if has_any_ref else None
 
     # 运行 RAGAS 评估
     logger.info("[%s] 运行 RAGAS 评估...", label)
     try:
         ragas_scores = evaluator.evaluate(
-            questions=[s["question"] for s in eval_samples],
+            questions=questions,
             responses=responses,
             contexts=all_contexts,
             references=ref_list,
@@ -269,7 +284,9 @@ def _log_result(result: BenchmarkResult) -> None:
         logger.info(
             "  %-25s P50=%.0fms P95=%.0fms AVG=%.0fms",
             "Latency(total)",
-            _p50(total_ms), _p95(total_ms), statistics.mean(total_ms),
+            _p50(total_ms),
+            _p95(total_ms),
+            statistics.mean(total_ms),
         )
 
 
@@ -304,9 +321,7 @@ def _render_markdown(results: list[BenchmarkResult]) -> str:
         relev = r.ragas_scores.get("answer_relevancy", 0)
         prec = r.ragas_scores.get("context_precision", 0)
         recall = r.ragas_scores.get("context_recall", 0)
-        lines.append(
-            f"| {r.label} | {faith:.4f} | {relev:.4f} | {prec:.4f} | {recall:.4f} |"
-        )
+        lines.append(f"| {r.label} | {faith:.4f} | {relev:.4f} | {prec:.4f} | {recall:.4f} |")
 
     lines.append("")
 
@@ -321,9 +336,7 @@ def _render_markdown(results: list[BenchmarkResult]) -> str:
             lines.append(f"| {r.label} | N/A | N/A | N/A |")
             continue
         total_ms = [l.total_ms for l in r.latencies]
-        lines.append(
-            f"| {r.label} | {_p50(total_ms):.0f} | {_p95(total_ms):.0f} | {statistics.mean(total_ms):.0f} |"
-        )
+        lines.append(f"| {r.label} | {_p50(total_ms):.0f} | {_p95(total_ms):.0f} | {statistics.mean(total_ms):.0f} |")
 
     lines.append("")
 
@@ -377,9 +390,7 @@ def _write_conclusions(results: list[BenchmarkResult], lines: list[str]) -> None
     # 3. 延迟结论
     if hybrid_r and hybrid_r.latencies:
         total_ms = [l.total_ms for l in hybrid_r.latencies]
-        lines.append(
-            f"- **混合检索延迟**：P50 = {_p50(total_ms):.0f}ms，满足交互体验要求（< 3s）"
-        )
+        lines.append(f"- **混合检索延迟**：P50 = {_p50(total_ms):.0f}ms，满足交互体验要求（< 3s）")
 
     # 4. 最优配置
     best_label = ""
@@ -402,6 +413,7 @@ def _write_conclusions(results: list[BenchmarkResult], lines: list[str]) -> None
 # ---------------------------------------------------------------------------
 # 辅助函数
 # ---------------------------------------------------------------------------
+
 
 def _p50(values: list[float]) -> float:
     """计算 P50（中位数）。"""
@@ -435,6 +447,7 @@ def _load_eval_samples(path: Path) -> list[dict]:
 # 主流程
 # ---------------------------------------------------------------------------
 
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Financial RAG Benchmark")
     parser.add_argument("--api-key", type=str, default=None, help="智谱 API Key（也可通过 .env 配置）")
@@ -450,8 +463,10 @@ def main() -> None:
         # 尝试从 .env 加载
         try:
             from dotenv import load_dotenv
+
             load_dotenv(_PROJECT_ROOT / ".env")
             import os
+
             api_key = os.environ.get("ZHIPU_API_KEY", "")
         except ImportError:
             pass

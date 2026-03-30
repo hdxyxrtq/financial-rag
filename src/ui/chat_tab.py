@@ -26,9 +26,9 @@ def _get_messages() -> list:
 def render_chat_tab() -> None:
     st.markdown(
         '<div class="main-header">'
-        '<h1>Financial RAG — Query Terminal</h1>'
+        "<h1>Financial RAG — Query Terminal</h1>"
         '<div class="subtitle">Retrieval-Augmented Generation for Financial Intelligence</div>'
-        '</div>',
+        "</div>",
         unsafe_allow_html=True,
     )
     st.markdown('<hr style="border-color:rgba(201,168,76,0.2);margin:0.4rem 0 1rem 0;">', unsafe_allow_html=True)
@@ -41,9 +41,7 @@ def render_chat_tab() -> None:
             if msg["role"] == "assistant" and msg.get("sources"):
                 with st.expander("References", expanded=False):
                     for src in msg["sources"]:
-                        title = src.get("metadata", {}).get(
-                            "title", src.get("metadata", {}).get("source", "未知来源")
-                        )
+                        title = src.get("metadata", {}).get("title", src.get("metadata", {}).get("source", "未知来源"))
                         score = src.get("score", 0)
                         st.markdown(f"**📄 {title}** （相似度: {score:.2f}）")
                         content = src.get("content", "")
@@ -108,28 +106,33 @@ def render_chat_tab() -> None:
                 answer_placeholder.markdown(answer)
                 status.update(label="Response complete", state="complete")
 
-                messages.append({
-                    "role": "assistant",
-                    "content": answer,
-                    "sources": sources,
-                    "query": prompt,
-                })
+                messages.append(
+                    {
+                        "role": "assistant",
+                        "content": answer,
+                        "sources": sources,
+                        "query": prompt,
+                    }
+                )
 
             except LLMAuthError as e:
                 logger.error("LLM Auth 错误: %s", e, exc_info=True)
                 st.error("API Key 无效，请在侧边栏重新输入")
                 status.update(label="Auth failed", state="error")
-                messages.append({"role": "assistant", "content": "抱歉，API Key 无效，请在侧边栏重新输入。", "sources": []})
+                msg = {"role": "assistant", "content": "抱歉，API Key 无效，请在侧边栏重新输入。", "sources": []}
+                messages.append(msg)
             except LLMQuotaError as e:
                 logger.error("LLM 额度耗尽: %s", e, exc_info=True)
                 st.error("API 额度已用完，请到 [智谱开放平台](https://open.bigmodel.cn/) 充值或更换 Key")
                 status.update(label="Quota exceeded", state="error")
-                messages.append({"role": "assistant", "content": "抱歉，API 额度已用完，请充值或更换 Key。", "sources": []})
+                msg = {"role": "assistant", "content": "抱歉，API 额度已用完，请充值或更换 Key。", "sources": []}
+                messages.append(msg)
             except LLMTimeoutError as e:
                 logger.error("LLM 超时: %s", e, exc_info=True)
                 st.error("请求超时，请检查网络连接后重试")
                 status.update(label="Timeout", state="error")
-                messages.append({"role": "assistant", "content": "抱歉，请求超时，请检查网络连接后重试。", "sources": []})
+                msg = {"role": "assistant", "content": "抱歉，请求超时，请检查网络连接后重试。", "sources": []}
+                messages.append(msg)
             except LLMRateLimitError as e:
                 logger.error("LLM 频率限制: %s", e, exc_info=True)
                 st.error("请求过于频繁，请等待几秒后重试")

@@ -1,17 +1,19 @@
 from __future__ import annotations
 
-import streamlit as st
 from dataclasses import replace
 
+import streamlit as st
+
+from src.cache import QueryCache
 from src.config import Config, RetrieverConfig
 from src.embeddings.zhipu_embedder import ZhipuEmbedder
 from src.generator.query_rewriter import QueryRewriter
 from src.generator.zhipu_llm import ZhipuLLM
 from src.rag_pipeline import RAGPipeline
+from src.reranker.zhipu_reranker import ZhipuReranker
 from src.retriever.bm25_retriever import BM25Retriever
 from src.retriever.hybrid_retriever import HybridRetriever
 from src.retriever.retriever import Retriever
-from src.reranker.zhipu_reranker import ZhipuReranker
 from src.vectorstore.chroma_store import ChromaStore
 
 config = Config()
@@ -56,10 +58,14 @@ def _build_rag_pipeline(api_key: str) -> RAGPipeline:
 
     strategy = st.session_state.retrieve_strategy
     if config.hybrid.enabled and strategy in ("hybrid", "bm25"):
-        base_retriever = Retriever(embedder, store, RetrieverConfig(
-            top_k=config.hybrid.vector_fetch_k,
-            score_threshold=0.0,
-        ))
+        base_retriever = Retriever(
+            embedder,
+            store,
+            RetrieverConfig(
+                top_k=config.hybrid.vector_fetch_k,
+                score_threshold=0.0,
+            ),
+        )
         bm25_retriever = _init_bm25_retriever()
         effective_config = replace(config.hybrid, strategy=strategy)
         retriever = HybridRetriever(
@@ -69,10 +75,14 @@ def _build_rag_pipeline(api_key: str) -> RAGPipeline:
             score_threshold=st.session_state.score_threshold,
         )
     else:
-        retriever = Retriever(embedder, store, RetrieverConfig(
-            top_k=st.session_state.top_k,
-            score_threshold=st.session_state.score_threshold,
-        ))
+        retriever = Retriever(
+            embedder,
+            store,
+            RetrieverConfig(
+                top_k=st.session_state.top_k,
+                score_threshold=st.session_state.score_threshold,
+            ),
+        )
 
     llm = _init_llm(
         api_key,
@@ -89,14 +99,24 @@ def _build_rag_pipeline(api_key: str) -> RAGPipeline:
     if st.session_state.query_rewrite:
         query_rewriter = QueryRewriter(llm=llm)
 
-    # Configure reranker with user-selected top-N when enabled
+    cache = None
+    if getattr(st.session_state, "cache_enabled", False):
+        cache = QueryCache(
+            embedder=embedder,
+            similarity_threshold=config.cache.similarity_threshold,
+            max_size=config.cache.max_size,
+        )
+
     reranker_config = None
     if st.session_state.reranker_enabled and config.reranker is not None:
         reranker_config = replace(config.reranker, top_n=st.session_state.reranker_top_n)
 
     return RAGPipeline(
-        retriever, llm, config.rag,
+        retriever,
+        llm,
+        config.rag,
         reranker=reranker,
         reranker_config=reranker_config,
         query_rewriter=query_rewriter,
+        cache=cache,
     )

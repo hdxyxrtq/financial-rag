@@ -1,11 +1,9 @@
 """文档处理器测试。"""
 
-import pytest
 
 from src.loaders.base_loader import Document
-from src.processor.chunker import Chunk, TextChunker
+from src.processor.chunker import TextChunker
 from src.processor.cleaner import TextCleaner
-
 
 # ============================================================
 # TextCleaner 测试
@@ -25,7 +23,7 @@ class TestTextCleaner:
     def test_normalize_whitespace(self):
         text = "多个   空格\t\t合并"
         result = self.cleaner.clean(text)
-        assert "多个 空格 合并" == result
+        assert result == "多个 空格 合并"
 
     def test_merge_broken_lines_chinese(self):
         text = "这是一段被换行打断的中文文本\n内容在第二行继续"

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING
@@ -48,13 +49,32 @@ class HybridRetriever:
 
         return self._hybrid_search(query, top_k=k, where=where)
 
+    async def aretrieve(
+        self,
+        query: str,
+        top_k: int | None = None,
+        where: dict | None = None,
+    ) -> list[RetrievalResult]:
+        strategy = self._config.strategy
+        k = top_k if top_k is not None else 5
+
+        if strategy == "vector":
+            results = await self._retriever.aretrieve(query, top_k=k, where=where)
+            if self._score_threshold > 0:
+                results = [r for r in results if r.score >= self._score_threshold]
+            return results
+
+        if strategy == "bm25":
+            return await self._bm25_to_results_async(query, top_k=k)
+
+        return await self._hybrid_search_async(query, top_k=k, where=where)
+
     def _hybrid_search(
         self, query: str, top_k: int, where: dict | None = None,
     ) -> list[RetrievalResult]:
         cfg = self._config
         fetch_k = cfg.vector_fetch_k
 
-        # 并行执行向量检索和 BM25 检索
         vector_results: list[RetrievalResult] | None = None
         bm25_results_raw: list[tuple[str, float]] | None = None
         vector_error: Exception | None = None
@@ -78,13 +98,11 @@ class HybridRetriever:
             with ThreadPoolExecutor(max_workers=2) as executor:
                 f_vec = executor.submit(_do_vector)
                 f_bm25 = executor.submit(_do_bm25)
-                # 等待两个任务都完成（无论成功或失败）
                 f_vec.result()
                 f_bm25.result()
         except Exception as e:
             logger.warning("并行检索框架异常: %s", e)
 
-        # 降级逻辑：一方失败时使用另一方
         if vector_error is not None:
             logger.warning("向量检索失败，降级为纯 BM25: %s", vector_error)
             if bm25_results_raw is not None:
@@ -113,6 +131,72 @@ class HybridRetriever:
 
         fused_ids = [doc_id for doc_id, _ in fused[:top_k]]
         return self._fetch_results_by_ids(fused_ids, fused)
+
+    async def _hybrid_search_async(
+        self, query: str, top_k: int, where: dict | None = None,
+    ) -> list[RetrievalResult]:
+        cfg = self._config
+        fetch_k = cfg.vector_fetch_k
+
+        vector_results: list[RetrievalResult] | None = None
+        bm25_results_raw: list[tuple[str, float]] | None = None
+        vector_error: Exception | None = None
+        bm25_error: Exception | None = None
+
+        async def _do_vector():
+            nonlocal vector_results, vector_error
+            try:
+                vector_results = await self._retriever.aretrieve(query, top_k=fetch_k, where=where)
+            except Exception as e:
+                vector_error = e
+
+        async def _do_bm25():
+            nonlocal bm25_results_raw, bm25_error
+            try:
+                bm25_results_raw = await self._bm25.aretrieve(query, top_k=cfg.bm25_fetch_k)
+            except Exception as e:
+                bm25_error = e
+
+        await asyncio.gather(_do_vector(), _do_bm25())
+
+        if vector_error is not None:
+            logger.warning("异步向量检索失败，降级为纯 BM25: %s", vector_error)
+            if bm25_results_raw is not None:
+                ids = [doc_id for doc_id, _ in bm25_results_raw[:top_k]]
+                return self._fetch_results_by_ids(ids, bm25_results_raw)
+            return await self._bm25_to_results_async(query, top_k=top_k)
+
+        if bm25_error is not None:
+            logger.warning("异步 BM25 检索失败，降级为纯向量: %s", bm25_error)
+            if vector_results is None:
+                return []
+            return vector_results[:top_k]
+
+        if vector_results is None:
+            return []
+        if bm25_results_raw is None:
+            return []
+
+        fused = _rrf_fuse(
+            [(r.doc_id, r.score) for r in vector_results],
+            bm25_results_raw,
+            k=cfg.rrf_k,
+            vector_weight=cfg.vector_weight,
+            bm25_weight=cfg.bm25_weight,
+        )
+
+        fused_ids = [doc_id for doc_id, _ in fused[:top_k]]
+        return self._fetch_results_by_ids(fused_ids, fused)
+
+    async def _bm25_to_results_async(self, query: str, top_k: int) -> list[RetrievalResult]:
+        try:
+            bm25_results = await self._bm25.aretrieve(query, top_k=top_k)
+        except Exception as e:
+            logger.error("异步 BM25 检索失败: %s", e)
+            return []
+
+        ids = [doc_id for doc_id, _ in bm25_results]
+        return self._fetch_results_by_ids(ids, bm25_results)
 
     def _bm25_to_results(self, query: str, top_k: int) -> list[RetrievalResult]:
         try:

@@ -4,8 +4,6 @@ import sys
 import types
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 
 def _install_fake_modules() -> dict[str, types.ModuleType]:
     """Inject fake modules for optional dependencies into sys.modules.

@@ -14,6 +14,7 @@ class LLMConfig:
     temperature: float = 0.7
     max_tokens: int = 2048
     top_p: float = 0.9
+
     def __post_init__(self):
         if not (0 <= self.temperature <= 2):
             raise ValueError(f"temperature must be 0-2, got {self.temperature}")
@@ -27,6 +28,7 @@ class LLMConfig:
 class EmbeddingConfig:
     model: str = "embedding-3"
     batch_size: int = 20
+
     def __post_init__(self):
         if self.batch_size < 1:
             raise ValueError(f"batch_size must be positive, got {self.batch_size}")
@@ -40,6 +42,7 @@ class ChunkerConfig:
     strategy: str = "paragraph"
     title_chunk_size: int = 1024
     title_patterns: list[str] = field(default_factory=list)
+
     def __post_init__(self):
         if self.chunk_size < 1:
             raise ValueError(f"chunk_size must be positive, got {self.chunk_size}")
@@ -53,6 +56,7 @@ class ChunkerConfig:
 class RetrieverConfig:
     top_k: int = 5
     score_threshold: float = 0.5
+
     def __post_init__(self):
         if self.top_k < 1:
             raise ValueError(f"top_k must be positive, got {self.top_k}")
@@ -75,7 +79,7 @@ class RAGConfig:
 @dataclass(frozen=True)
 class HybridConfig:
     enabled: bool = True
-    strategy: str = "hybrid"          # "vector" / "bm25" / "hybrid"
+    strategy: str = "hybrid"  # "vector" / "bm25" / "hybrid"
     rrf_k: int = 60
     vector_weight: float = 0.6
     bm25_weight: float = 0.4
@@ -97,6 +101,13 @@ class AppConfig:
     page_title: str = "金融 RAG 问答系统"
 
 
+@dataclass(frozen=True)
+class CacheConfig:
+    enabled: bool = False
+    similarity_threshold: float = 0.95
+    max_size: int = 100
+
+
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
@@ -109,7 +120,7 @@ def setup_logging(level: str = "INFO") -> None:
 
 
 def _load_yaml(path: Path) -> dict[str, object]:
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         return yaml.safe_load(f)
 
 
@@ -122,6 +133,7 @@ class Config:
     _rag: RAGConfig
     _hybrid: HybridConfig
     _reranker: RerankerConfig
+    _cache: CacheConfig
     _app: AppConfig
 
     def __init__(self) -> None:
@@ -141,7 +153,18 @@ class Config:
         self._hybrid = self._make(HybridConfig, cast(dict[str, Any], raw.get("hybrid") or {}))
         self._reranker = self._make(RerankerConfig, cast(dict[str, Any], raw.get("reranker") or {}))
         self._app = self._make(AppConfig, cast(dict[str, Any], raw.get("app") or {}))
-        log_level = str((raw.get("logging") or {}).get("level", "INFO"))
+        cache_raw: dict[str, Any] = {}
+        if isinstance(raw, dict):
+            tmp = raw.get("cache")
+            if isinstance(tmp, dict):
+                cache_raw = tmp
+        self._cache = self._make(CacheConfig, cache_raw)
+        # Safe retrieval of logging level from YAML
+        log_level = "INFO"
+        if isinstance(raw, dict):
+            tmp = raw.get("logging")
+            if isinstance(tmp, dict) and "level" in tmp:
+                log_level = str(tmp["level"])
         setup_logging(log_level)
 
     @staticmethod
@@ -188,3 +211,7 @@ class Config:
     @property
     def api_key(self) -> str | None:
         return os.environ.get("ZHIPU_API_KEY")
+
+    @property
+    def cache(self) -> CacheConfig:
+        return self._cache

@@ -38,6 +38,7 @@ _session_defaults = {
     "reranker_enabled": config.reranker.enabled,
     "reranker_top_n": config.reranker.top_n,
     "query_rewrite": config.rag.query_rewrite,
+    "cache_enabled": config.cache.enabled,
 }
 for _key, _default in _session_defaults.items():
     if _key not in st.session_state:

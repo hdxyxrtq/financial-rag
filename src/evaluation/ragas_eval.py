@@ -6,14 +6,8 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from datasets import Dataset
     from langchain_openai import ChatOpenAI
+
     # ChatOpenAI is imported inside _get_llm for lazy loading
-    from ragas import evaluate
-    from ragas.metrics import (
-        answer_relevancy,
-        context_precision,
-        context_recall,
-        faithfulness,
-    )
     from src.rag_pipeline import RAGPipeline
 
 logger = logging.getLogger(__name__)
@@ -55,14 +49,14 @@ class RAGEvaluator:
     ) -> dict[str, float]:
         # Local imports to keep dependencies lazy and testable
         from datasets import Dataset
+        from langchain_openai import OpenAIEmbeddings
         from ragas import evaluate as ragas_evaluate
         from ragas.metrics import (
-            faithfulness,
             answer_relevancy,
             context_precision,
             context_recall,
+            faithfulness,
         )
-        from langchain_openai import OpenAIEmbeddings
 
         data_dict: dict[str, Any] = {
             "user_input": questions,
@@ -84,10 +78,26 @@ class RAGEvaluator:
             openai_api_key=self._api_key,
         )
 
-        result = ragas_evaluate(dataset, metrics=metrics, llm=self._get_llm(), embeddings=embeddings)
+        eval_result = ragas_evaluate(dataset, metrics=metrics, llm=self._get_llm(), embeddings=embeddings)
+
+        # ragas 0.4+: EvaluationResult._repr_dict is {metric_name: average_score}
+        if hasattr(eval_result, "_repr_dict"):
+            raw_scores = eval_result._repr_dict
+        elif hasattr(eval_result, "to_pandas"):
+            pdf = eval_result.to_pandas()
+            # only keep metric columns (skip dataset columns)
+            metric_cols = [
+                c for c in pdf.columns if c not in ("user_input", "response", "retrieved_contexts", "reference")
+            ]
+            raw_scores = {col: float(pdf[col].mean()) for col in metric_cols}
+        elif isinstance(eval_result, dict):
+            raw_scores = eval_result
+        else:
+            logger.error("无法解析 RAGAS 结果: %s", type(eval_result))
+            raw_scores = {}
 
         scores: dict[str, float] = {}
-        for key, value in result.items():
+        for key, value in raw_scores.items():
             if hasattr(value, "item"):
                 scores[key] = float(value.item())
             else:

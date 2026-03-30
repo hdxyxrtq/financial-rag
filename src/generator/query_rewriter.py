@@ -1,11 +1,5 @@
 from __future__ import annotations
 
-
-def _trim_history_for_rewrite(chat_history: list[dict[str, str]]) -> list[dict[str, str]]:
-    if len(chat_history) <= 6:
-        return list(chat_history)
-    return list(chat_history[-6:])
-
 import logging
 from typing import TYPE_CHECKING
 
@@ -13,6 +7,13 @@ if TYPE_CHECKING:
     from src.generator.zhipu_llm import ZhipuLLM
 
 logger = logging.getLogger(__name__)
+
+
+def _trim_history_for_rewrite(chat_history: list[dict[str, str]]) -> list[dict[str, str]]:
+    if len(chat_history) <= 6:
+        return list(chat_history)
+    return list(chat_history[-6:])
+
 
 _QUERY_REWRITE_SYSTEM_PROMPT = """\
 你是一个专业的金融领域查询改写助手。你的任务是：根据对话历史，将用户最新提出的问题改写为一个**独立、完整**的检索用问题。
@@ -62,15 +63,10 @@ class QueryRewriter:
             # 构造对话上下文（仅保留最近几轮，控制 token 消耗）
             recent_history = _trim_history_for_rewrite(chat_history)
             history_text = "\n".join(
-                f"{'用户' if m['role'] == 'user' else '助手'}: {m['content']}"
-                for m in recent_history
+                f"{'用户' if m['role'] == 'user' else '助手'}: {m['content']}" for m in recent_history
             )
 
-            user_prompt = (
-                f"对话历史：\n{history_text}\n\n"
-                f"用户最新问题: {query}\n"
-                f"改写结果:"
-            )
+            user_prompt = f"对话历史：\n{history_text}\n\n用户最新问题: {query}\n改写结果:"
 
             rewritten = self._llm.chat(
                 system_prompt=_QUERY_REWRITE_SYSTEM_PROMPT,
@@ -83,7 +79,7 @@ class QueryRewriter:
             # Strip common LLM output prefixes
             for prefix in ("改写结果:", "改写结果：", "改写:", "改写："):
                 if rewritten.startswith(prefix):
-                    rewritten = rewritten[len(prefix):].strip()
+                    rewritten = rewritten[len(prefix) :].strip()
                     break
             if not rewritten:
                 logger.debug("Query rewrite 返回空结果，使用原始 query")
@@ -94,4 +90,39 @@ class QueryRewriter:
 
         except Exception as e:
             logger.warning("Query rewrite 失败，降级为原始 query: %s", e)
+            return query
+
+    async def arewrite(self, query: str, chat_history: list[dict[str, str]]) -> str:
+        if not chat_history or not query.strip():
+            return query
+
+        try:
+            recent_history = _trim_history_for_rewrite(chat_history)
+            history_text = "\n".join(
+                f"{'用户' if m['role'] == 'user' else '助手'}: {m['content']}" for m in recent_history
+            )
+
+            user_prompt = f"对话历史：\n{history_text}\n\n用户最新问题: {query}\n改写结果:"
+
+            rewritten = await self._llm.achat(
+                system_prompt=_QUERY_REWRITE_SYSTEM_PROMPT,
+                messages=[{"role": "user", "content": user_prompt}],
+                temperature=0.0,
+                max_tokens=256,
+            )
+
+            rewritten = rewritten.strip()
+            for prefix in ("改写结果:", "改写结果：", "改写:", "改写："):
+                if rewritten.startswith(prefix):
+                    rewritten = rewritten[len(prefix) :].strip()
+                    break
+            if not rewritten:
+                logger.debug("异步 Query rewrite 返回空结果，使用原始 query")
+                return query
+
+            logger.info("异步 Query rewrite: '%s' → '%s'", query, rewritten)
+            return rewritten
+
+        except Exception as e:
+            logger.warning("异步 Query rewrite 失败，降级为原始 query: %s", e)
             return query

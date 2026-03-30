@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -86,6 +87,48 @@ class Retriever:
 
         logger.info(
             "检索完成：返回 %d/%d 条结果（阈值 %.2f）",
+            len(results), len(raw_results), threshold,
+        )
+        return results
+
+    async def aretrieve(
+        self,
+        query: str,
+        top_k: int | None = None,
+        where: dict | None = None,
+    ) -> list[RetrievalResult]:
+        try:
+            query_embedding = await self._embedder.aembed_query(query)
+        except Exception as e:
+            raise RetrievalError(f"查询向量化失败: {e}") from e
+
+        k = top_k if top_k is not None else self._config.top_k
+
+        logger.debug("异步检索 query=%r, top_k=%d, where=%s", query, k, where)
+
+        raw_results = await asyncio.to_thread(
+            self._vectorstore.search,
+            query_embedding,
+            k,
+            where,
+        )
+
+        threshold = self._config.score_threshold
+        results: list[RetrievalResult] = []
+        for item in raw_results:
+            if item["score"] < threshold:
+                continue
+            results.append(RetrievalResult(
+                content=item["content"],
+                score=item["score"],
+                metadata=item.get("metadata") or {},
+                doc_id=item.get("id", ""),
+            ))
+
+        results.sort(key=lambda r: r.score, reverse=True)
+
+        logger.info(
+            "异步检索完成：返回 %d/%d 条结果（阈值 %.2f）",
             len(results), len(raw_results), threshold,
         )
         return results

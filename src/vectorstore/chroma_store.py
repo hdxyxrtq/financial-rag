@@ -107,7 +107,7 @@ class ChromaStore:
             dists = results["distances"][0] if results["distances"] else [0.0] * len(docs)
             ids = results["ids"][0] if results["ids"] else [""] * len(docs)
 
-            for doc, meta, dist, doc_id in zip(docs, metas, dists, ids):
+            for doc, meta, dist, doc_id in zip(docs, metas, dists, ids, strict=False):
                 if not doc or not doc.strip():
                     continue
                 # ChromaDB cosine distance → 转为相似度分数 (0~1)
@@ -134,7 +134,7 @@ class ChromaStore:
             docs = result.get("documents") or []
             metas = result.get("metadatas") or [{}] * len(docs)
             res_ids = result.get("ids") or []
-            for doc_id, doc, meta in zip(res_ids, docs, metas):
+            for doc_id, doc, meta in zip(res_ids, docs, metas, strict=False):
                 if doc:
                     doc_map[doc_id] = {"content": doc, "metadata": meta or {}}
             return doc_map
@@ -144,7 +144,7 @@ class ChromaStore:
 
     def get_all_documents(self) -> dict[str, str]:
         """获取所有文档内容（供 BM25 索引构建使用）。
-        
+
         注意：对于大型知识库（>10000 文档块），此方法会消耗大量内存。
         """
         try:
@@ -154,7 +154,7 @@ class ChromaStore:
             result = self._collection.get(include=["documents"])
             docs = result.get("documents") or []
             ids = result.get("ids") or []
-            return {doc_id: doc for doc_id, doc in zip(ids, docs) if doc}
+            return {doc_id: doc for doc_id, doc in zip(ids, docs, strict=False) if doc}
         except Exception as e:
             logger.error("获取所有文档失败: %s", e)
             return {}

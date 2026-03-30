@@ -63,3 +63,9 @@ reranker:
 # 日志配置
 logging:
   level: "INFO"              # 日志级别：DEBUG / INFO / WARNING / ERROR
+
+# 查询缓存配置（阶段 2）
+cache:
+  enabled: false
+  similarity_threshold: 0.95
+  max_size: 100

@@ -1,6 +1,6 @@
 import logging
-import time
 import random
+import time
 from collections.abc import Callable
 from typing import Any
 
@@ -34,3 +34,30 @@ def call_with_retry(
                 wait, attempt + 1, max_retries, e,
             )
             time.sleep(wait)
+
+
+async def async_call_with_retry(
+    fn: Callable[[], Any],
+    classify_fn: Callable[[Exception], Exception],
+    max_retries: int = 3,
+    non_retriable_types: tuple[type, ...] = (),
+) -> Any:
+    """异步版本的重试包装器，使用 asyncio.sleep 替代 time.sleep。"""
+    import asyncio
+
+    for attempt in range(max_retries):
+        try:
+            return await fn()
+        except Exception as e:
+            classified = classify_fn(e)
+            if isinstance(classified, non_retriable_types):
+                raise classified from e
+            if attempt == max_retries - 1:
+                logger.error("异步 API 调用失败（已重试 %d 次）: %s", max_retries, e)
+                raise classified from e
+            wait = 2 ** attempt + random.uniform(0, 1)
+            logger.warning(
+                "异步 API 调用失败，%d 秒后重试 (%d/%d): %s",
+                wait, attempt + 1, max_retries, e,
+            )
+            await asyncio.sleep(wait)

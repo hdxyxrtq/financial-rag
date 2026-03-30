@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import TYPE_CHECKING
 
@@ -39,7 +40,7 @@ class BM25Retriever:
 
     def mark_dirty(self) -> None:
         """标记 BM25 索引需要重建。
-        
+
         Note: 当前通过 _init_bm25_retriever.clear() (st.cache_resource)
         销毁缓存实例来实现索引刷新，此方法保留供未来使用。
         """
@@ -60,13 +61,16 @@ class BM25Retriever:
         scores = self._bm25.get_scores(tokens)
 
         ranked = sorted(
-            zip(self._doc_ids, scores),
+            zip(self._doc_ids, scores, strict=False),
             key=lambda x: x[1],
             reverse=True,
         )
 
         logger.info("BM25 检索完成：query=%r, 返回 %d 条", query, min(top_k, len(ranked)))
         return ranked[:top_k]
+
+    async def aretrieve(self, query: str, top_k: int = 30) -> list[tuple[str, float]]:
+        return await asyncio.to_thread(self.retrieve, query, top_k)
 
     def _rebuild_index(self) -> None:
         logger.info("正在重建 BM25 索引...")
@@ -91,7 +95,7 @@ class BM25Retriever:
             return
 
         tokenized = [jieba.lcut_for_search(doc) for doc in docs if doc]
-        ids = [doc_id for doc, doc_id in zip(docs, ids) if doc]
+        ids = [doc_id for doc, doc_id in zip(docs, ids, strict=False) if doc]
         self._bm25 = BM25Okapi(tokenized)
         self._doc_ids = ids
         self._dirty = False

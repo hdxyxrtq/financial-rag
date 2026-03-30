@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import logging
 from uuid import uuid4
 
 import streamlit as st
 
 from src.config import Config
+from src.metrics.collector import MetricsCollector
 from src.ui.services import _init_vectorstore
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +22,7 @@ def render_sidebar() -> None:
             'text-transform:uppercase;letter-spacing:3px;">Financial RAG</div>'
             '<div style="font-size:0.6rem;color:#4B5563;letter-spacing:1px;'
             'text-transform:uppercase;margin-top:2px;">Intelligent Query System</div>'
-            '</div>',
+            "</div>",
             unsafe_allow_html=True,
         )
         st.markdown('<hr style="border-color:rgba(201,168,76,0.2);margin:0.5rem 0;">', unsafe_allow_html=True)
@@ -42,12 +43,8 @@ def render_sidebar() -> None:
             for cid in conv_list:
                 msgs = st.session_state.conversations.get(cid, [])
                 if msgs:
-                    first_user_msg = next(
-                        (m["content"] for m in msgs if m["role"] == "user"), "EMPTY"
-                    )
-                    display_names.append(
-                        first_user_msg[:20] + ("..." if len(first_user_msg) > 20 else "")
-                    )
+                    first_user_msg = next((m["content"] for m in msgs if m["role"] == "user"), "EMPTY")
+                    display_names.append(first_user_msg[:20] + ("..." if len(first_user_msg) > 20 else ""))
                 else:
                     display_names.append("— New Session —")
 
@@ -81,14 +78,13 @@ def render_sidebar() -> None:
 
         if api_key:
             st.markdown(
-                '<div style="color:#22C55E;font-size:0.78rem;letter-spacing:0.5px;padding:0.3rem 0;">'
-                '● CONNECTED</div>',
+                '<div style="color:#22C55E;font-size:0.78rem;letter-spacing:0.5px;padding:0.3rem 0;">● CONNECTED</div>',
                 unsafe_allow_html=True,
             )
         else:
             st.markdown(
                 '<div style="color:#EAB308;font-size:0.78rem;letter-spacing:0.5px;padding:0.3rem 0;">'
-                '● AWAITING KEY</div>',
+                "● AWAITING KEY</div>",
                 unsafe_allow_html=True,
             )
 
@@ -97,9 +93,7 @@ def render_sidebar() -> None:
         model = st.selectbox(
             "Model",
             ["glm-4-flash", "glm-4", "glm-4-plus"],
-            index=["glm-4-flash", "glm-4", "glm-4-plus"].index(
-                config.llm.model
-            )
+            index=["glm-4-flash", "glm-4", "glm-4-plus"].index(config.llm.model)
             if config.llm.model in ("glm-4-flash", "glm-4", "glm-4-plus")
             else 0,
         )
@@ -111,17 +105,13 @@ def render_sidebar() -> None:
         retrieve_strategy = st.radio(
             "Retrieval Mode",
             ["混合检索", "向量检索", "BM25 检索"],
-            index=["hybrid", "vector", "bm25"].index(
-                st.session_state.retrieve_strategy
-            )
+            index=["hybrid", "vector", "bm25"].index(st.session_state.retrieve_strategy)
             if st.session_state.retrieve_strategy in ("hybrid", "vector", "bm25")
             else 0,
         )
         strategy_map = {"混合检索": "hybrid", "向量检索": "vector", "BM25 检索": "bm25"}
         top_k = st.slider("Top-K", 1, 20, config.retriever.top_k, 1)
-        score_threshold = st.slider(
-            "Score Threshold", 0.0, 1.0, config.retriever.score_threshold, 0.05
-        )
+        score_threshold = st.slider("Score Threshold", 0.0, 1.0, config.retriever.score_threshold, 0.05)
 
         st.markdown('<hr style="border-color:rgba(201,168,76,0.15);margin:0.6rem 0;">', unsafe_allow_html=True)
         st.subheader("RERANKER")
@@ -134,14 +124,16 @@ def render_sidebar() -> None:
             help="多轮对话时自动改写指代性问题为独立检索 query（如「那它的市盈率呢？」→「沪深300的市盈率是多少？」）",
         )
 
+        cache_enabled = st.checkbox(
+            "Enable Query Cache",
+            value=st.session_state.cache_enabled,
+            help="启用语义缓存，相似问题直接返回缓存结果，减少 API 调用",
+        )
+
         st.markdown('<hr style="border-color:rgba(201,168,76,0.15);margin:0.6rem 0;">', unsafe_allow_html=True)
         st.subheader("CHUNKING")
-        chunk_size = st.slider(
-            "Chunk Size", 128, 2048, config.chunker.chunk_size, 64
-        )
-        chunk_overlap = st.slider(
-            "Chunk Overlap", 0, 512, config.chunker.chunk_overlap, 32
-        )
+        chunk_size = st.slider("Chunk Size", 128, 2048, config.chunker.chunk_size, 64)
+        chunk_overlap = st.slider("Chunk Overlap", 0, 512, config.chunker.chunk_overlap, 32)
         if chunk_overlap >= chunk_size:
             st.warning("Chunk Overlap 应小于 Chunk Size，否则分块将无意义。请调小 Overlap 或增大 Size。")
 
@@ -154,8 +146,31 @@ def render_sidebar() -> None:
         st.session_state.reranker_enabled = reranker_enabled
         st.session_state.reranker_top_n = reranker_top_n
         st.session_state.query_rewrite = query_rewrite_enabled
+        st.session_state.cache_enabled = cache_enabled
         st.session_state.chunk_size = chunk_size
         st.session_state.chunk_overlap = chunk_overlap
+
+        st.markdown('<hr style="border-color:rgba(201,168,76,0.15);margin:0.6rem 0;">', unsafe_allow_html=True)
+        st.subheader("SYSTEM METRICS")
+        try:
+            _collector = MetricsCollector()
+            _summary = _collector.summary()
+            if _summary["total_queries"] > 0:
+                total_tokens = _summary["total_input_tokens"] + _summary["total_output_tokens"]
+                st.markdown(
+                    f'<div style="font-size:0.75rem;color:#9CA3AF;">'
+                    f'<div>Queries: <b style="color:#C9A84C;">{_summary["total_queries"]}</b></div>'
+                    f'<div>Avg Latency: <b style="color:#C9A84C;">{_summary["avg_latency_ms"]:.0f}ms</b></div>'
+                    f'<div>P95 Latency: <b style="color:#C9A84C;">{_summary["p95_latency_ms"]:.0f}ms</b></div>'
+                    f'<div>Cache Hit: <b style="color:#C9A84C;">{_summary["cache_hit_rate"] * 100:.1f}%</b></div>'
+                    f'<div>Tokens: <b style="color:#C9A84C;">{total_tokens}</b></div>'
+                    f"</div>",
+                    unsafe_allow_html=True,
+                )
+            else:
+                st.caption("No queries yet")
+        except Exception as e:
+            logger.debug("Metrics display failed: %s", e)
 
         st.markdown('<hr style="border-color:rgba(201,168,76,0.15);margin:0.6rem 0;">', unsafe_allow_html=True)
         st.subheader("KNOWLEDGE BASE")
@@ -166,7 +181,7 @@ def render_sidebar() -> None:
                 f'<div class="sidebar-kb-stat">'
                 f'<div class="stat-label">Indexed Chunks</div>'
                 f'<div class="stat-value">{stats["document_count"]}</div>'
-                f'</div>',
+                f"</div>",
                 unsafe_allow_html=True,
             )
         except Exception as e:
@@ -180,6 +195,6 @@ def render_sidebar() -> None:
             '<div class="branding-footer">'
             '<div class="brand-name">Financial RAG</div>'
             '<div class="brand-version">v1.0 // Powered by GLM</div>'
-            '</div>',
+            "</div>",
             unsafe_allow_html=True,
         )

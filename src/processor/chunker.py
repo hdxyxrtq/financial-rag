@@ -18,6 +18,7 @@ def _init_tokenizer() -> tuple[tiktoken.Encoding | None, bool]:
     """初始化 tiktoken tokenizer，返回 (encoder, available)。"""
     try:
         import tiktoken
+
         encoder = tiktoken.get_encoding("cl100k_base")
         return encoder, True
     except ImportError:
@@ -44,10 +45,10 @@ def count_tokens(text: str) -> int:
 
 # 默认标题匹配模式
 _DEFAULT_TITLE_PATTERNS: list[str] = [
-    r"^#{1,3}\s+.+",                       # Markdown 标题
-    r"^[一二三四五六七八九十]+、.+",          # 中文 一、二、...
+    r"^#{1,3}\s+.+",  # Markdown 标题
+    r"^[一二三四五六七八九十]+、.+",  # 中文 一、二、...
     r"^第[一二三四五六七八九十百]+[章节篇].+",  # 第X章/节/篇
-    r"^\d+[.、]\s*.+",                      # 1. / 1、
+    r"^\d+[.、]\s*.+",  # 1. / 1、
 ]
 
 
@@ -83,9 +84,7 @@ class TextChunker:
         """计算文本的 token 数量。"""
         return count_tokens(text)
 
-    def chunk(
-        self, text: str, metadata: dict[str, str] | None = None
-    ) -> list[Chunk]:
+    def chunk(self, text: str, metadata: dict[str, str] | None = None) -> list[Chunk]:
         """将文本按段落优先策略分块。
 
         Args:
@@ -115,10 +114,10 @@ class TextChunker:
         chunk_id = 0
         # 预先计算段落的累计字符偏移，避免 O(n^2) 的逐段落求和
         _para_offsets: list[int] = [0]
-        for i, p in enumerate(paragraphs):
+        for _i, p in enumerate(paragraphs):
             _para_offsets.append(_para_offsets[-1] + len(p) + len(self._separator))
 
-        for para_idx, (orig_idx, paragraph) in enumerate(non_empty):
+        for _para_idx, (orig_idx, paragraph) in enumerate(non_empty):
             # 计算当前段落在整个原文中的字符位置（O(1)）
             para_start = _para_offsets[orig_idx]
 
@@ -134,19 +133,20 @@ class TextChunker:
                 else:
                     # 切出当前块
                     if current_text.strip():
-                        chunks.append(self._make_chunk(
-                            chunk_id, current_text, meta,
-                            current_start, current_start + len(current_text),
-                        ))
+                        chunks.append(
+                            self._make_chunk(
+                                chunk_id,
+                                current_text,
+                                meta,
+                                current_start,
+                                current_start + len(current_text),
+                            )
+                        )
                         chunk_id += 1
 
                     # 重叠：从当前块末尾取 overlap tokens
                     overlap_text = self._get_overlap_text(current_text)
-                    current_text = (
-                        overlap_text + self._separator + paragraph
-                        if overlap_text
-                        else paragraph
-                    )
+                    current_text = overlap_text + self._separator + paragraph if overlap_text else paragraph
                     current_start = para_start - len(overlap_text) if overlap_text else para_start
 
         # 处理最后一个块
@@ -156,10 +156,15 @@ class TextChunker:
                 sub_chunks = self._force_split(current_text, meta, current_start, chunk_id)
                 chunks.extend(sub_chunks)
             else:
-                chunks.append(self._make_chunk(
-                    chunk_id, current_text, meta,
-                    current_start, current_start + len(current_text),
-                ))
+                chunks.append(
+                    self._make_chunk(
+                        chunk_id,
+                        current_text,
+                        meta,
+                        current_start,
+                        current_start + len(current_text),
+                    )
+                )
 
         return chunks
 
@@ -243,12 +248,9 @@ class TextChunker:
                 if current.strip():
                     sentences.append(current.strip())
                     current = ""
-            elif char == ".":
-                # Only split on '.' when it's the end of a sentence, i.e. next char is space/newline/end
-                if i + 1 >= len(text) or text[i + 1].isspace():
-                    if current.strip():
-                        sentences.append(current.strip())
-                        current = ""
+            elif char == "." and (i + 1 >= len(text) or text[i + 1].isspace()) and current.strip():
+                sentences.append(current.strip())
+                current = ""
 
         if current.strip():
             sentences.append(current.strip())
@@ -262,10 +264,15 @@ class TextChunker:
             candidate = current_text + sentence if not current_text else current_text + "\n" + sentence
 
             if self._count_tokens(candidate) > self._chunk_size and current_text:
-                chunks.append(self._make_chunk(
-                    chunk_id, current_text, metadata,
-                    char_offset, char_offset + len(current_text),
-                ))
+                chunks.append(
+                    self._make_chunk(
+                        chunk_id,
+                        current_text,
+                        metadata,
+                        char_offset,
+                        char_offset + len(current_text),
+                    )
+                )
                 chunk_id += 1
                 char_offset += len(current_text) + 1
                 current_text = sentence
@@ -273,10 +280,15 @@ class TextChunker:
                 current_text = candidate
 
         if current_text.strip():
-            chunks.append(self._make_chunk(
-                chunk_id, current_text, metadata,
-                char_offset, char_offset + len(current_text),
-            ))
+            chunks.append(
+                self._make_chunk(
+                    chunk_id,
+                    current_text,
+                    metadata,
+                    char_offset,
+                    char_offset + len(current_text),
+                )
+            )
 
         return chunks
 
@@ -300,8 +312,7 @@ class TitleBasedChunker:
     ) -> None:
         self._chunk_size = chunk_size
         self._patterns: list[re.Pattern[str]] = [
-            re.compile(p, re.MULTILINE)
-            for p in (title_patterns or _DEFAULT_TITLE_PATTERNS)
+            re.compile(p, re.MULTILINE) for p in (title_patterns or _DEFAULT_TITLE_PATTERNS)
         ]
 
     def _is_title_line(self, line: str) -> bool:
@@ -350,10 +361,9 @@ class TitleBasedChunker:
         current = ""
         for char in content:
             current += char
-            if char in "。\n！？!?;；":
-                if current.strip():
-                    sentences.append(current.strip())
-                    current = ""
+            if char in "。\n！？!?;；" and current.strip():
+                sentences.append(current.strip())
+                current = ""
         if current.strip():
             sentences.append(current.strip())
 
@@ -370,14 +380,16 @@ class TitleBasedChunker:
                 # First sub-chunk should include the section title for context
                 if not chunks:
                     chunk_content = title + "\n" + chunk_content
-                chunks.append(Chunk(
-                    content=chunk_content,
-                    metadata=chunk_meta,
-                    chunk_id=chunk_id,
-                    start_char=char_offset,
-                    end_char=char_offset + len(chunk_content),
-                    token_count=count_tokens(chunk_content),
-                ))
+                chunks.append(
+                    Chunk(
+                        content=chunk_content,
+                        metadata=chunk_meta,
+                        chunk_id=chunk_id,
+                        start_char=char_offset,
+                        end_char=char_offset + len(chunk_content),
+                        token_count=count_tokens(chunk_content),
+                    )
+                )
                 chunk_id += 1
                 char_offset += len(chunk_content) + 1
                 section_text = sentence
@@ -387,20 +399,20 @@ class TitleBasedChunker:
         if section_text.strip():
             chunk_meta = dict(metadata)
             chunk_meta["section_title"] = title
-            chunks.append(Chunk(
-                content=section_text.strip(),
-                metadata=chunk_meta,
-                chunk_id=chunk_id,
-                start_char=char_offset,
-                end_char=char_offset + len(section_text),
-                token_count=count_tokens(section_text),
-            ))
+            chunks.append(
+                Chunk(
+                    content=section_text.strip(),
+                    metadata=chunk_meta,
+                    chunk_id=chunk_id,
+                    start_char=char_offset,
+                    end_char=char_offset + len(section_text),
+                    token_count=count_tokens(section_text),
+                )
+            )
 
         return chunks
 
-    def chunk(
-        self, text: str, metadata: dict[str, str] | None = None
-    ) -> list[Chunk]:
+    def chunk(self, text: str, metadata: dict[str, str] | None = None) -> list[Chunk]:
         """按标题/章节将文本分块。
 
         Args:
@@ -435,19 +447,25 @@ class TitleBasedChunker:
             chunk_meta["section_title"] = title
 
             if token_count <= self._chunk_size:
-                chunks.append(Chunk(
-                    content=full_text.strip(),
-                    metadata=chunk_meta,
-                    chunk_id=chunk_id,
-                    start_char=char_offset,
-                    end_char=char_offset + len(full_text),
-                    token_count=token_count,
-                ))
+                chunks.append(
+                    Chunk(
+                        content=full_text.strip(),
+                        metadata=chunk_meta,
+                        chunk_id=chunk_id,
+                        start_char=char_offset,
+                        end_char=char_offset + len(full_text),
+                        token_count=token_count,
+                    )
+                )
                 chunk_id += 1
                 char_offset += len(full_text) + 1
             else:
                 sub_chunks = self._split_long_section(
-                    title, content, meta, char_offset, chunk_id,
+                    title,
+                    content,
+                    meta,
+                    char_offset,
+                    chunk_id,
                 )
                 chunks.extend(sub_chunks)
                 chunk_id += len(sub_chunks)

@@ -1,4 +1,3 @@
-import time
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -108,9 +107,8 @@ class TestZhipuEmbedder:
         """超过最大重试次数应抛出 EmbeddingError。"""
         self.mock_client.embeddings.create.side_effect = ConnectionError("always fail")
 
-        with patch("src.utils.time.sleep"):
-            with pytest.raises(EmbeddingError, match="调用失败"):
-                self.embedder.embed_texts(["test"])
+        with patch("src.utils.time.sleep"), pytest.raises(EmbeddingError, match="调用失败"):
+            self.embedder.embed_texts(["test"])
 
     def test_embed_texts_custom_model(self) -> None:
         """自定义模型名称应正确传递给 API。"""

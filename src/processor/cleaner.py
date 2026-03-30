@@ -19,8 +19,6 @@ class TextCleaner:
         "？": "？",  # 保留中文问号
         "！": "！",  # 保留中文叹号
         '"': '"',
-        '"': '"',
-        "'": "'",
         "'": "'",
         "【": "[",
         "】": "]",
@@ -115,10 +113,7 @@ class TextCleaner:
             return True
 
         # 英文行中间断开（当前以连字符结尾）
-        if current.endswith("-") and next_line[0:1].isalpha():
-            return True
-
-        return False
+        return bool(current.endswith("-") and next_line[0:1].isalpha())
 
     def _remove_special_chars(self, text: str) -> str:
         """去除乱码和控制字符，保留金融符号和常用标点。"""

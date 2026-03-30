@@ -2,7 +2,7 @@ import logging
 
 from zhipuai import ZhipuAI
 
-from src.utils import _AUTH_KEYWORDS, _QUOTA_KEYWORDS, _TIMEOUT_KEYWORDS, call_with_retry
+from src.utils import _AUTH_KEYWORDS, _QUOTA_KEYWORDS, _TIMEOUT_KEYWORDS, async_call_with_retry, call_with_retry
 
 logger = logging.getLogger(__name__)
 
@@ -73,13 +73,55 @@ class ZhipuEmbedder:
                 sorted_data = sorted(response.data, key=lambda x: x.index or 0)
                 return [item.embedding for item in sorted_data]
 
-            embeddings = call_with_retry(do_call, _classify_embedding_error, non_retriable_types=(EmbeddingAuthError, EmbeddingQuotaError))
+            embeddings = call_with_retry(
+                do_call,
+                _classify_embedding_error,
+                non_retriable_types=(EmbeddingAuthError, EmbeddingQuotaError),
+            )
             all_embeddings.extend(embeddings)
 
         return all_embeddings
 
     def embed_query(self, text: str) -> list[float]:
         result = self.embed_texts([text])
+        if not result:
+            raise EmbeddingError("API returned no embeddings for the query")
+        return result[0]
+
+    async def aembed_batch(self, texts: list[str]) -> list[list[float]]:
+        if not texts:
+            return []
+
+        all_embeddings: list[list[float]] = []
+
+        for i in range(0, len(texts), self._batch_size):
+            batch = texts[i : i + self._batch_size]
+            logger.debug(
+                "Async embedding batch %d/%d (%d texts)",
+                i // self._batch_size + 1,
+                (len(texts) + self._batch_size - 1) // self._batch_size,
+                len(batch),
+            )
+
+            def do_call(b=batch):
+                response = self._client.embeddings.create(
+                    model=self._model,
+                    input=b,
+                )
+                sorted_data = sorted(response.data, key=lambda x: x.index or 0)
+                return [item.embedding for item in sorted_data]
+
+            embeddings = await async_call_with_retry(
+                do_call,
+                _classify_embedding_error,
+                non_retriable_types=(EmbeddingAuthError, EmbeddingQuotaError),
+            )
+            all_embeddings.extend(embeddings)
+
+        return all_embeddings
+
+    async def aembed_query(self, text: str) -> list[float]:
+        result = await self.aembed_batch([text])
         if not result:
             raise EmbeddingError("API returned no embeddings for the query")
         return result[0]

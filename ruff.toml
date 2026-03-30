@@ -1,0 +1,12 @@
+line-length = 120
+target-version = "py311"
+
+[lint]
+select = ["E", "F", "W", "I", "UP", "SIM"]
+ignore = ["B008"]
+
+[lint.isort]
+known-first-party = ["src"]
+
+[lint.per-file-ignores]
+"tests/**" = ["B018", "SIM115"]

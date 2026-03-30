@@ -1,17 +1,17 @@
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
 from src.config import RAGConfig, RetrieverConfig
-from src.retriever.retriever import RetrievalError, RetrievalResult, Retriever
 from src.rag_pipeline import RAGPipeline, RAGPipelineError
-
+from src.retriever.retriever import RetrievalError, RetrievalResult, Retriever
 
 # ---------------------------------------------------------------------------
 # Fixtures / helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_retrieval_result(
     content: str = "测试内容",
@@ -55,6 +55,7 @@ def mock_config(retriever_config) -> RAGConfig:
 # ---------------------------------------------------------------------------
 # Retriever tests
 # ---------------------------------------------------------------------------
+
 
 class TestRetriever:
     """Retriever 单元测试。"""
@@ -112,7 +113,9 @@ class TestRetriever:
 
         mock_vectorstore.search.assert_called_once()
         call_kwargs = mock_vectorstore.search.call_args
-        assert call_kwargs.kwargs.get("where") == {"doc_type": "news"} or call_kwargs[1].get("where") == {"doc_type": "news"}
+        assert call_kwargs.kwargs.get("where") == {"doc_type": "news"} or call_kwargs[1].get("where") == {
+            "doc_type": "news"
+        }
 
     def test_retrieve_embedder_failure(self, mock_embedder, mock_vectorstore, retriever_config):
         """Embedding 失败应抛出 RetrievalError。"""
@@ -138,12 +141,11 @@ class TestRetriever:
 # RAG Pipeline tests
 # ---------------------------------------------------------------------------
 
+
 class TestRAGPipeline:
     """RAGPipeline 单元测试。"""
 
-    def _make_pipeline(
-        self, mock_llm, mock_retriever, mock_config
-    ) -> RAGPipeline:
+    def _make_pipeline(self, mock_llm, mock_retriever, mock_config) -> RAGPipeline:
         return RAGPipeline(retriever=mock_retriever, llm=mock_llm, config=mock_config)
 
     def test_query_returns_answer_and_sources(self, mock_llm, mock_config):
@@ -176,7 +178,7 @@ class TestRAGPipeline:
             {"role": "user", "content": "中国经济怎么样？"},
             {"role": "assistant", "content": "请问具体想了解哪方面？"},
         ]
-        result = pipeline.query("GDP增速如何？", chat_history=history)
+        pipeline.query("GDP增速如何？", chat_history=history)
 
         # 验证 LLM 收到的 messages 包含历史 + 当前问题
         call_args = mock_llm.chat.call_args
@@ -256,6 +258,7 @@ class TestRAGPipeline:
 # RAG Pipeline context trimming tests
 # ---------------------------------------------------------------------------
 
+
 class TestContextTrimming:
     """上下文裁剪逻辑测试。"""
 
@@ -305,6 +308,7 @@ class TestContextTrimming:
 # Format context tests
 # ---------------------------------------------------------------------------
 
+
 class TestFormatContext:
     """_format_context 格式化测试。"""
 
@@ -343,6 +347,7 @@ class TestFormatContext:
 # ---------------------------------------------------------------------------
 # Input validation tests
 # ---------------------------------------------------------------------------
+
 
 class TestInputValidation:
     """输入校验测试。"""

@@ -12,7 +12,6 @@ from src.loaders.pdf_loader import PDFLoader
 from src.loaders.qa_loader import QALoader
 from src.loaders.text_loader import TextLoader
 
-
 # ============================================================
 # BaseLoader 测试
 # ============================================================

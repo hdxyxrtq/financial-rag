@@ -1,6 +1,5 @@
+import contextlib
 import importlib
 
-try:
+with contextlib.suppress(ImportError):
     importlib.import_module("src.evaluation")
-except ImportError:
-    pass
