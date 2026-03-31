@@ -272,12 +272,15 @@ class TestContextTrimming:
     def test_short_context_not_trimmed(self, pipeline):
         """短上下文不应被裁剪。"""
         short_text = "这是一段很短的文本。"
-        result = pipeline._trim_context(short_text, max_tokens=100)
+        result, sources = pipeline._trim_context(short_text, max_tokens=100)
         assert result == short_text
+        assert sources == []
 
     def test_empty_context(self, pipeline):
         """空上下文应原样返回。"""
-        assert pipeline._trim_context("", 100) == ""
+        result, sources = pipeline._trim_context("", 100)
+        assert result == ""
+        assert sources == []
 
     def test_long_context_trimmed(self, pipeline):
         """超长上下文应从末尾裁剪文档块。"""
@@ -288,7 +291,7 @@ class TestContextTrimming:
         long_text = "\n\n".join(blocks)
 
         # 设置一个极小的 max_tokens 迫使裁剪
-        result = pipeline._trim_context(long_text, max_tokens=50)
+        result, sources = pipeline._trim_context(long_text, max_tokens=50)
 
         # 裁剪后应至少保留第一个块
         assert "[来源 1]" in result
@@ -298,7 +301,7 @@ class TestContextTrimming:
     def test_trim_preserves_at_least_one_block(self, pipeline):
         """即使单个块也超限，仍应保留至少一个块。"""
         single_block = "[来源 1] 来源: 文档A\n" + "超长文本" * 1000
-        result = pipeline._trim_context(single_block, max_tokens=1)
+        result, sources = pipeline._trim_context(single_block, max_tokens=1)
 
         # 至少保留一个块（第一个）
         assert "[来源 1]" in result
