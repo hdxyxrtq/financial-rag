@@ -1,6 +1,7 @@
 import logging
 import os
 from dataclasses import dataclass, field
+from dataclasses import fields as dataclass_fields
 from pathlib import Path
 from typing import Any, cast
 
@@ -121,7 +122,9 @@ def setup_logging(level: str = "INFO") -> None:
 
 def _load_yaml(path: Path) -> dict[str, object]:
     with open(path, encoding="utf-8") as f:
-        return yaml.safe_load(f)
+        result = yaml.safe_load(f)
+    assert isinstance(result, dict)
+    return result
 
 
 class Config:
@@ -169,8 +172,8 @@ class Config:
 
     @staticmethod
     def _make(target_cls: type, raw: dict[str, Any]):
-        fields = {f.name for f in target_cls.__dataclass_fields__.values()}
-        return target_cls(**{k: v for k, v in raw.items() if k in fields})
+        field_names = {f.name for f in dataclass_fields(target_cls)}
+        return target_cls(**{k: v for k, v in raw.items() if k in field_names})
 
     @property
     def llm(self) -> LLMConfig:

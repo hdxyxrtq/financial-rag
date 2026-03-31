@@ -39,6 +39,7 @@ class MetricsCollector:
 
     _instance: MetricsCollector | None = None
     _lock = threading.Lock()
+    _initialized: bool
 
     def __new__(cls) -> MetricsCollector:
         if cls._instance is None:
