@@ -41,7 +41,7 @@ def _index_file(file_path: Path, original_name: str = "") -> tuple:
         return 0, "文件内容为空"
 
     if config.chunker.strategy == "title":
-        chunker = TitleBasedChunker(
+        chunker: TextChunker | TitleBasedChunker = TitleBasedChunker(
             chunk_size=config.chunker.title_chunk_size,
             title_patterns=config.chunker.title_patterns,
         )
@@ -180,7 +180,7 @@ def render_doc_management_tab() -> None:
         all_ids = []
 
     if all_ids:
-        file_groups = {}
+        file_groups: dict[str, list[str]] = {}
         for doc_id in all_ids:
             parts = doc_id.split("_", 2)
             if len(parts) >= 2:

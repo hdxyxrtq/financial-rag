@@ -6,12 +6,12 @@ import re
 from collections.abc import AsyncGenerator, Generator
 from string import Template
 from time import perf_counter
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypeAlias
 
 from src.cache import QueryCache
 from src.metrics.collector import MetricsCollector, QueryMetrics
 from src.retriever.hybrid_retriever import HybridRetriever
-from src.retriever.retriever import RetrievalResult
+from src.retriever.retriever import RetrievalResult, Retriever
 
 if TYPE_CHECKING:
     import tiktoken
@@ -20,9 +20,8 @@ if TYPE_CHECKING:
     from src.generator.query_rewriter import QueryRewriter
     from src.generator.zhipu_llm import ZhipuLLM
     from src.reranker.zhipu_reranker import ZhipuReranker
-    from src.retriever.retriever import Retriever
 
-    RetrieverType = Retriever | HybridRetriever
+RetrieverType: TypeAlias = Retriever | HybridRetriever
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +62,7 @@ class RAGPipeline:
 
     def __init__(
         self,
-        retriever: RetrieverType,
+        retriever: Retriever | HybridRetriever,
         llm: ZhipuLLM,
         config: RAGConfig,
         reranker: ZhipuReranker | None = None,
@@ -577,19 +576,16 @@ class RAGPipeline:
 
     def _trim_context(
         self, formatted_docs: str, max_tokens: int, sources: list[dict] | None = None
-    ) -> str | tuple[str, list[dict]]:
+    ) -> tuple[str, list[dict]]:
+        """Trim context to fit within token limit, always returning a tuple."""
         if not formatted_docs:
-            if sources is None:
-                return ""
             return "", sources or []
 
         if self._count_tokens(formatted_docs) <= max_tokens:
-            if sources is None:
-                return formatted_docs
-            else:
-                return formatted_docs, sources or []
+            return formatted_docs, sources or []
 
         blocks = re.split(r"(?=^\[来源 \d+\])", formatted_docs, flags=re.MULTILINE)
+
         blocks = [b.strip() for b in blocks if b.strip()]
 
         if sources:
@@ -603,6 +599,6 @@ class RAGPipeline:
             while len(blocks) > 1:
                 total = "\n\n".join(blocks)
                 if self._count_tokens(total) <= max_tokens:
-                    return total
+                    return total, []
                 blocks.pop()
-            return blocks[0] if blocks else formatted_docs
+            return (blocks[0] if blocks else formatted_docs), []

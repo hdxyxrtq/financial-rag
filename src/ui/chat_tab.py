@@ -18,9 +18,10 @@ from src.ui.services import _build_rag_pipeline
 logger = logging.getLogger(__name__)
 
 
-def _get_messages() -> list:
+def _get_messages() -> list[dict]:
     cid = st.session_state.current_conversation_id
-    return st.session_state.conversations.setdefault(cid, [])
+    conversations: dict = st.session_state.conversations
+    return conversations.setdefault(cid, [])
 
 
 def render_chat_tab() -> None:

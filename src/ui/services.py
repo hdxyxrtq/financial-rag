@@ -57,6 +57,7 @@ def _build_rag_pipeline(api_key: str) -> RAGPipeline:
     store = _init_vectorstore()
 
     strategy = st.session_state.retrieve_strategy
+    retriever: Retriever | HybridRetriever
     if config.hybrid.enabled and strategy in ("hybrid", "bm25"):
         base_retriever = Retriever(
             embedder,

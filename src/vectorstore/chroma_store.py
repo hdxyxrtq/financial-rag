@@ -48,14 +48,11 @@ class ChromaStore:
         """
         if len(ids) != len(documents) or len(ids) != len(embeddings):
             raise VectorStoreError(
-                f"ids({len(ids)}), documents({len(documents)}), "
-                f"embeddings({len(embeddings)}) 长度必须一致"
+                f"ids({len(ids)}), documents({len(documents)}), embeddings({len(embeddings)}) 长度必须一致"
             )
 
         if metadatas is not None and len(metadatas) != len(ids):
-            raise VectorStoreError(
-                f"metadatas({len(metadatas)}) 与 ids({len(ids)}) 长度必须一致"
-            )
+            raise VectorStoreError(f"metadatas({len(metadatas)}) 与 ids({len(ids)}) 长度必须一致")
 
         try:
             kwargs: dict = {
@@ -71,9 +68,7 @@ class ChromaStore:
         except Exception as e:
             error_msg = str(e).lower()
             if "dimension" in error_msg:
-                raise VectorStoreError(
-                    f"向量维度不匹配，请检查 Embedding 模型配置: {e}"
-                ) from e
+                raise VectorStoreError(f"向量维度不匹配，请检查 Embedding 模型配置: {e}") from e
             raise VectorStoreError(f"添加文档失败: {e}") from e
 
     def search(
@@ -113,12 +108,14 @@ class ChromaStore:
                 # ChromaDB cosine distance → 转为相似度分数 (0~1)
                 # cosine distance = 1 - cosine_similarity, 所以 similarity = 1 - distance
                 score = min(1.0, max(0.0, 1.0 - dist))
-                items.append({
-                    "content": doc,
-                    "metadata": meta or {},
-                    "score": score,
-                    "id": doc_id,
-                })
+                items.append(
+                    {
+                        "content": doc,
+                        "metadata": meta or {},
+                        "score": score,
+                        "id": doc_id,
+                    }
+                )
 
             return items
 
@@ -129,14 +126,14 @@ class ChromaStore:
     def get_documents_by_ids(self, ids: list[str]) -> dict[str, dict]:
         """批量获取文档内容（供 BM25 等模块使用）。"""
         try:
-            result = self._collection.get(ids=ids, include=["documents", "metadatas"])
+            result: dict = self._collection.get(ids=ids, include=["documents", "metadatas"])
             doc_map: dict[str, dict] = {}
-            docs = result.get("documents") or []
-            metas = result.get("metadatas") or [{}] * len(docs)
-            res_ids = result.get("ids") or []
+            docs: list = result.get("documents") or []
+            metas: list = result.get("metadatas") or [{}] * len(docs)
+            res_ids: list = result.get("ids") or []
             for doc_id, doc, meta in zip(res_ids, docs, metas, strict=False):
                 if doc:
-                    doc_map[doc_id] = {"content": doc, "metadata": meta or {}}
+                    doc_map[str(doc_id)] = {"content": doc, "metadata": meta or {}}
             return doc_map
         except Exception as e:
             logger.error("批量获取文档失败: %s", e)
@@ -187,8 +184,9 @@ class ChromaStore:
     def get_all_ids(self) -> list[str]:
         """获取所有已存储的文档 ID。"""
         try:
-            result = self._collection.get(include=[])
-            return result.get("ids", [])
+            result: dict = self._collection.get(include=[])
+            ids: list = result.get("ids", [])
+            return [str(i) for i in ids]
         except Exception as e:
             logger.error("获取 ID 列表失败: %s", e)
             return []

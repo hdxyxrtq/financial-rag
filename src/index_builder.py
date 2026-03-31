@@ -23,6 +23,8 @@ logger = logging.getLogger(__name__)
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
+ChunkerType = TextChunker | TitleBasedChunker
+
 
 class IndexBuilder:
     """文档索引构建器。
@@ -34,9 +36,7 @@ class IndexBuilder:
         self._config = Config()
         key = api_key or self._config.api_key
         if not key:
-            raise ValueError(
-                "未提供 API Key，请通过参数传入或设置 ZHIPU_API_KEY 环境变量"
-            )
+            raise ValueError("未提供 API Key，请通过参数传入或设置 ZHIPU_API_KEY 环境变量")
 
         self._embedder = ZhipuEmbedder(
             api_key=key,
@@ -48,6 +48,7 @@ class IndexBuilder:
             collection_name=self._config.vectorstore.collection_name,
         )
         # 根据 config 策略选择分块器
+        self._chunker: ChunkerType
         if self._config.chunker.strategy == "title":
             self._chunker = TitleBasedChunker(
                 chunk_size=self._config.chunker.title_chunk_size,
@@ -181,7 +182,10 @@ class IndexBuilder:
             if show_progress:
                 logger.info(
                     "Embedding 进度: %d/%d (%d/%d texts)",
-                    batch_num, total_batches, len(all_embeddings), len(texts),
+                    batch_num,
+                    total_batches,
+                    len(all_embeddings),
+                    len(texts),
                 )
             embeddings = self._embedder.embed_texts(batch)
             all_embeddings.extend(embeddings)

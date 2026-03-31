@@ -13,13 +13,41 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 _FINANCIAL_TERMS = [
-    "资产负债率", "净资产收益率", "市盈率", "市净率", "毛利率", "净利率",
-    "营业收入", "净利润", "总资产", "流动比率", "速动比率", "资产回报率",
-    "股东权益", "息税前利润", "经营活动现金流", "投资活动现金流",
-    "筹资活动现金流", "应收账款周转率", "存货周转率", "沪深300",
-    "中证500", "上证综指", "深证成指", "创业板指", "科创板",
-    "融券", "融资融券", "涨跌停", "IPO", "市盈率TTM",
-    "每股收益", "股息率", "ROE", "ROA", "EBITDA",
+    "资产负债率",
+    "净资产收益率",
+    "市盈率",
+    "市净率",
+    "毛利率",
+    "净利率",
+    "营业收入",
+    "净利润",
+    "总资产",
+    "流动比率",
+    "速动比率",
+    "资产回报率",
+    "股东权益",
+    "息税前利润",
+    "经营活动现金流",
+    "投资活动现金流",
+    "筹资活动现金流",
+    "应收账款周转率",
+    "存货周转率",
+    "沪深300",
+    "中证500",
+    "上证综指",
+    "深证成指",
+    "创业板指",
+    "科创板",
+    "融券",
+    "融资融券",
+    "涨跌停",
+    "IPO",
+    "市盈率TTM",
+    "每股收益",
+    "股息率",
+    "ROE",
+    "ROA",
+    "EBITDA",
 ]
 
 
@@ -48,7 +76,8 @@ class BM25Retriever:
         logger.debug("BM25 索引标记为 dirty")
 
     def get_documents_by_ids(self, ids: list[str]) -> dict[str, dict]:
-        return self._vectorstore.get_documents_by_ids(ids)
+        result: dict[str, dict] = self._vectorstore.get_documents_by_ids(ids)
+        return result
 
     def retrieve(self, query: str, top_k: int = 30) -> list[tuple[str, float]]:
         if self._dirty:

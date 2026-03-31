@@ -102,10 +102,10 @@ def _render_metrics_tab() -> None:
 
 
 def _avg_sources(summary: dict) -> float:
-    recent = summary.get("recent_queries", [])
+    recent: list = summary.get("recent_queries", [])
     if not recent:
         return 0.0
-    return sum(r.get("num_sources", 0) for r in recent) / len(recent)
+    return float(sum(r.get("num_sources", 0) for r in recent) / len(recent))
 
 
 def _render_eval_content(api_key: str) -> None:
