@@ -42,6 +42,7 @@ from src.retriever.bm25_retriever import BM25Retriever
 from src.retriever.hybrid_retriever import HybridRetriever
 from src.retriever.retriever import Retriever
 from src.reranker.zhipu_reranker import ZhipuReranker
+from src.reranker.local_reranker import LocalRreranker
 from src.vectorstore.chroma_store import ChromaStore
 
 logging.basicConfig(
@@ -135,14 +136,14 @@ def _build_pipeline(
             retriever=base_retriever,
             bm25_retriever=bm25,
             config=hybrid_cfg,
-            score_threshold=0.0,
+            score_threshold=0.3,
         )
     else:
         retriever = Retriever(
             embedder,
             store,
             RetrieverConfig(
-                top_k=5,
+                top_k=8,
                 score_threshold=0.3,
             ),
         )
@@ -150,14 +151,14 @@ def _build_pipeline(
     llm = ZhipuLLM(
         api_key=api_key,
         model="glm-4-flash",
-        temperature=0.3,
+        temperature=0.1,
         max_tokens=2048,
     )
 
     reranker = None
     reranker_cfg = None
     if use_reranker:
-        reranker = ZhipuReranker(api_key=api_key)
+        reranker = LocalRreranker()
         reranker_cfg = RerankerConfig(
             enabled=True,
             retrieve_n=20,
@@ -173,7 +174,7 @@ def _build_pipeline(
                 store,
                 RetrieverConfig(
                     top_k=20,
-                    score_threshold=0.0,
+                    score_threshold=0.3,
                 ),
             )
 
