@@ -426,11 +426,20 @@ class RAGPipeline:
         question: str,
         results: list[RetrievalResult],
     ) -> list[RetrievalResult]:
+        """Position-Aware Blending (async)."""
         cfg = self._reranker_config
         if cfg is None:
             return results
 
         contents = [r.content for r in results]
+
+        orig_scores = [r.score for r in results]
+        max_s, min_s = max(orig_scores), min(orig_scores)
+        if max_s > min_s:
+            norm_orig = [(s - min_s) / (max_s - min_s) for s in orig_scores]
+        else:
+            norm_orig = [1.0] * len(orig_scores)
+
         try:
             reranker = self._reranker
             if reranker is None:
@@ -444,25 +453,37 @@ class RAGPipeline:
             logger.warning("异步 Rerank 失败，降级为原始排序: %s", e)
             return results
 
-        reranked: list[RetrievalResult] = []
+        blended: list[RetrievalResult] = []
         for rr in rerank_results:
-            if rr.relevance_score < cfg.min_score:
-                continue
             if rr.index < 0 or rr.index >= len(results):
                 logger.warning("Reranker returned out-of-range index %d, skipping", rr.index)
                 continue
+
+            if rr.index < 3:
+                w_orig, w_rerank = 0.75, 0.25
+            elif rr.index < 10:
+                w_orig, w_rerank = 0.60, 0.40
+            else:
+                w_orig, w_rerank = 0.40, 0.60
+
+            blended_score = w_orig * norm_orig[rr.index] + w_rerank * rr.relevance_score
+
+            if blended_score < cfg.min_score:
+                continue
+
             original = results[rr.index]
-            reranked.append(
+            blended.append(
                 RetrievalResult(
                     content=original.content,
-                    score=rr.relevance_score,
+                    score=blended_score,
                     metadata=original.metadata,
                     doc_id=original.doc_id,
                 )
             )
 
-        logger.info("异步 Rerank 完成：输入 %d 条，输出 %d 条", len(results), len(reranked))
-        return reranked
+        blended.sort(key=lambda x: x.score, reverse=True)
+        logger.info("异步 Position-Aware Rerank 完成：输入 %d 条，输出 %d 条", len(results), len(blended))
+        return blended
 
     def _retrieve_or_fallback(self, question: str, **retrieve_kwargs) -> list[RetrievalResult] | None:
         try:
@@ -481,11 +502,26 @@ class RAGPipeline:
         question: str,
         results: list[RetrievalResult],
     ) -> list[RetrievalResult]:
+        """Position-Aware Blending: 按原始排名位置加权融合 RRF 分数与 Reranker 分数。
+
+        参考 QMD 设计：顶部文档信任原始排序，靠后文档更信任 reranker。
+        - 原始排名 1-3:  75% 原始分 + 25% reranker 分
+        - 原始排名 4-10: 60% 原始分 + 40% reranker 分
+        - 原始排名 11+:  40% 原始分 + 60% reranker 分
+        """
         cfg = self._reranker_config
         if cfg is None:
             return results
 
         contents = [r.content for r in results]
+
+        orig_scores = [r.score for r in results]
+        max_s, min_s = max(orig_scores), min(orig_scores)
+        if max_s > min_s:
+            norm_orig = [(s - min_s) / (max_s - min_s) for s in orig_scores]
+        else:
+            norm_orig = [1.0] * len(orig_scores)
+
         try:
             reranker = self._reranker
             if reranker is None:
@@ -499,25 +535,37 @@ class RAGPipeline:
             logger.warning("Rerank 失败，降级为原始排序: %s", e)
             return results
 
-        reranked: list[RetrievalResult] = []
+        blended: list[RetrievalResult] = []
         for rr in rerank_results:
-            if rr.relevance_score < cfg.min_score:
-                continue
             if rr.index < 0 or rr.index >= len(results):
                 logger.warning("Reranker returned out-of-range index %d, skipping", rr.index)
                 continue
+
+            if rr.index < 3:
+                w_orig, w_rerank = 0.75, 0.25
+            elif rr.index < 10:
+                w_orig, w_rerank = 0.60, 0.40
+            else:
+                w_orig, w_rerank = 0.40, 0.60
+
+            blended_score = w_orig * norm_orig[rr.index] + w_rerank * rr.relevance_score
+
+            if blended_score < cfg.min_score:
+                continue
+
             original = results[rr.index]
-            reranked.append(
+            blended.append(
                 RetrievalResult(
                     content=original.content,
-                    score=rr.relevance_score,
+                    score=blended_score,
                     metadata=original.metadata,
                     doc_id=original.doc_id,
                 )
             )
 
-        logger.info("Rerank 完成：输入 %d 条，输出 %d 条", len(results), len(reranked))
-        return reranked
+        blended.sort(key=lambda x: x.score, reverse=True)
+        logger.info("Position-Aware Rerank 完成：输入 %d 条，输出 %d 条", len(results), len(blended))
+        return blended
 
     @staticmethod
     def _build_messages(

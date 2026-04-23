@@ -45,3 +45,6 @@ screenshots/rag_eval_results.csv
 
 # 原始文档数据（本地知识库）
 data/raw/
+
+# 本地模型文件
+models/
