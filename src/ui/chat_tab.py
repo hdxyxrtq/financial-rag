@@ -4,6 +4,7 @@ import logging
 
 import streamlit as st
 
+from src.correction.types import ClaimVerdict, CorrectionResult, RetrievalQuality
 from src.generator.zhipu_llm import (
     LLMAuthError,
     LLMError,
@@ -18,11 +19,11 @@ from src.ui.services import _build_rag_pipeline
 logger = logging.getLogger(__name__)
 
 
-def _render_correction_info(correction: dict) -> None:
-    passed = correction.get("passed", True)
-    confidence = correction.get("confidence", 0.0)
-    flagged = correction.get("flagged_claims", [])
-    layer_results = correction.get("layer_results", {})
+def _render_correction_info(correction: CorrectionResult) -> None:
+    passed = correction.passed
+    confidence = correction.confidence
+    flagged = correction.flagged_claims
+    layer_results = correction.layer_results or {}
 
     status_icon = "✅" if passed else "⚠️"
     status_text = "通过" if passed else "有疑点"
@@ -42,7 +43,7 @@ def _render_correction_info(correction: dict) -> None:
                 st.markdown(f"- 🚫 {claim}")
 
         if "retrieval_quality" in layer_results:
-            rq = layer_results["retrieval_quality"]
+            rq: RetrievalQuality = layer_results["retrieval_quality"]  # type: ignore[assignment]
             st.markdown(
                 f"**检索质量:** {rq.level} (top score: {rq.top_score:.2f}, "
                 f"avg: {rq.avg_score:.2f}, sources: {rq.num_sources})"
@@ -52,7 +53,7 @@ def _render_correction_info(correction: dict) -> None:
             st.markdown(f"**重试次数:** {layer_results['retries']}")
 
         if "rule_issues" in layer_results:
-            issues = layer_results["rule_issues"]
+            issues: list[dict] = layer_results["rule_issues"]  # type: ignore[assignment]
             if issues:
                 st.markdown(f"**规则检查问题:** {len(issues)} 项")
                 for issue in issues[:5]:
@@ -60,12 +61,12 @@ def _render_correction_info(correction: dict) -> None:
                     st.markdown(f"  - [{severity}] {issue.get('message', '')}")
 
         if "nli" in layer_results:
-            verdicts = layer_results["nli"]
+            verdicts: list[ClaimVerdict] = layer_results["nli"]  # type: ignore[assignment]
             unsupported_count = sum(1 for v in verdicts if not v.supported)
             st.markdown(f"**NLI 验证:** {len(verdicts)} 条断言, {unsupported_count} 条未通过")
 
         if "external" in layer_results:
-            ext = layer_results["external"]
+            ext: list[ClaimVerdict] = layer_results["external"]  # type: ignore[assignment]
             ext_unsupported = sum(1 for v in ext if not v.supported)
             st.markdown(f"**外部验证:** {len(ext)} 条, {ext_unsupported} 条未通过")
 
@@ -155,7 +156,7 @@ def render_chat_tab() -> None:
                     sources = result.get("sources", [])  # type: ignore[assignment]
                     st.session_state.retrieval_results = sources
                     if "correction" in result and result["correction"] is not None:
-                        correction_data = dict(result["correction"])
+                        correction_data = result["correction"]  # type: ignore[assignment]
                     st.markdown(answer)
                     status.update(label="Response complete", state="complete")
                 else:
