@@ -1,4 +1,3 @@
-from src.reranker.local_reranker import LocalRreranker
-from src.reranker.zhipu_reranker import RerankError, RerankResult, ZhipuReranker
+from src.reranker.local_reranker import LocalRreranker, RerankError, RerankResult
 
-__all__ = ["ZhipuReranker", "LocalRreranker", "RerankResult", "RerankError"]
+__all__ = ["LocalRreranker", "RerankResult", "RerankError"]

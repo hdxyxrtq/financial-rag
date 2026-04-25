@@ -1,21 +1,27 @@
-"""基于 BGE-reranker-v2-m3 的本地重排序器。
-
-使用 sentence_transformers.CrossEncoder 加载模型，首次运行自动下载。
-接口与 ZhipuReranker 一致（rerank / arerank → list[RerankResult]）。
-"""
+"""基于 BGE-reranker-v2-m3 的本地重排序器。"""
 
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
-
-from src.reranker.zhipu_reranker import RerankResult
 
 if TYPE_CHECKING:
     from sentence_transformers import CrossEncoder
 
 logger = logging.getLogger(__name__)
+
+
+class RerankError(Exception):
+    pass
+
+
+@dataclass
+class RerankResult:
+    index: int
+    relevance_score: float
+    content: str
 
 DEFAULT_MODEL = "BAAI/bge-reranker-v2-m3"
 _CACHE_DIR = Path(__file__).resolve().parent.parent.parent / "models"

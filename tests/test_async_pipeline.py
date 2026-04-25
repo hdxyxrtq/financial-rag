@@ -96,7 +96,7 @@ class TestAquery:
 
     @pytest.mark.asyncio
     async def test_aquery_with_reranker(self, mock_retriever, mock_llm, mock_config, mock_reranker):
-        from src.reranker.zhipu_reranker import RerankResult
+        from src.reranker.local_reranker import RerankResult
 
         mock_reranker.arerank = AsyncMock(return_value=[
             RerankResult(index=0, relevance_score=0.95, content="文档A"),
