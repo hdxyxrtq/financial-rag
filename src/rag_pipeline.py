@@ -6,7 +6,7 @@ import re
 from collections.abc import AsyncGenerator, Generator
 from string import Template
 from time import perf_counter
-from typing import TYPE_CHECKING, TypeAlias
+from typing import TYPE_CHECKING, Any, TypeAlias, cast
 
 from src.cache import QueryCache
 from src.metrics.collector import MetricsCollector, QueryMetrics
@@ -88,17 +88,8 @@ class RAGPipeline:
         question: str,
         chat_history: list[dict[str, str]] | None = None,
         **retrieve_kwargs,
-    ) -> dict:
-        """同步查询：检索 → 构造 Prompt → 生成回答。
-
-        Args:
-            question: 用户问题。
-            chat_history: 历史对话消息列表，每项为 {"role": ..., "content": ...}。
-            **retrieve_kwargs: 传递给 retriever.retrieve() 的额外参数（top_k, where 等）。
-
-        Returns:
-            {"answer": str, "sources": list[dict]}
-        """
+    ) -> dict[str, Any]:
+        """同步查询：检索 → 构造 Prompt → 生成回答。"""
         if not question or not question.strip():
             return {"answer": "请输入有效的问题。", "sources": []}
         if len(question) > 4096:
@@ -118,7 +109,7 @@ class RAGPipeline:
                         cache_hit=True,
                     )
                 )
-                return cached
+                return cast(dict[str, Any], cached)
 
         if chat_history and self._query_rewriter:
             question = self._query_rewriter.rewrite(question, chat_history)
@@ -275,7 +266,7 @@ class RAGPipeline:
                         cache_hit=True,
                     )
                 )
-                return cached
+                return cast(dict[str, Any], cached)
 
         if chat_history and self._query_rewriter:
             question = await self._query_rewriter.arewrite(question, chat_history)

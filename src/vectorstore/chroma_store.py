@@ -98,7 +98,7 @@ class ChromaStore:
                 return items
 
             docs = results["documents"][0]
-            metas = results["metadatas"][0] if results["metadatas"] else [None] * len(docs)
+            metas = results["metadatas"][0] if results["metadatas"] else [{} for _ in docs]
             dists = results["distances"][0] if results["distances"] else [0.0] * len(docs)
             ids = results["ids"][0] if results["ids"] else [""] * len(docs)
 

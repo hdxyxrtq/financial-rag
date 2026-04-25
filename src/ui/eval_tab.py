@@ -105,7 +105,7 @@ def _avg_sources(summary: dict) -> float:
     recent: list = summary.get("recent_queries", [])
     if not recent:
         return 0.0
-    return float(sum(r.get("num_sources", 0) for r in recent) / len(recent))
+    return float(sum(r.get("num_sources", 0) for r in recent) / len(recent))  # type: ignore[no-any-return]
 
 
 def _render_eval_content(api_key: str) -> None:

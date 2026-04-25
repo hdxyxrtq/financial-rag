@@ -76,7 +76,7 @@ def _build_rag_pipeline(api_key: str) -> RAGPipeline | SelfCorrectingPipeline:
             score_threshold=st.session_state.score_threshold,
         )
     else:
-        retriever = Retriever(
+        retriever = Retriever(  # type: ignore[assignment]
             embedder,
             store,
             RetrieverConfig(

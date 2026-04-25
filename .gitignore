@@ -52,9 +52,6 @@ models/
 # 论文源文件
 paper/
 
-# 本地计划文件
-SELF_CORRECTION_PLAN.md
-
 # 启动脚本
 start.bat
 start_api.bat

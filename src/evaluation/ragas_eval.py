@@ -35,8 +35,8 @@ class RAGEvaluator:
 
         self._llm = ChatOpenAI(
             model=self._model,
-            openai_api_base=self._base_url,
-            openai_api_key=self._api_key,
+            base_url=self._base_url,
+            api_key=self._api_key,
             temperature=0,
         )
         return self._llm
@@ -75,8 +75,8 @@ class RAGEvaluator:
 
         embeddings = OpenAIEmbeddings(
             model=self._embedding_model,
-            openai_api_base=self._base_url,
-            openai_api_key=self._api_key,
+            base_url=self._base_url,
+            api_key=self._api_key,
         )
 
         eval_result = ragas_evaluate(dataset, metrics=metrics, llm=self._get_llm(), embeddings=embeddings)

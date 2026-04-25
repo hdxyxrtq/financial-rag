@@ -130,11 +130,11 @@ def setup_logging(level: str = "INFO") -> None:
     )
 
 
-def _load_yaml(path: Path) -> dict[str, object]:
+def _load_yaml(path: Path) -> dict[str, Any]:
     with open(path, encoding="utf-8") as f:
         result = yaml.safe_load(f)
     assert isinstance(result, dict)
-    return result
+    return cast(dict[str, Any], result)
 
 
 class Config:
@@ -183,8 +183,8 @@ class Config:
         setup_logging(log_level)
 
     @staticmethod
-    def _make(target_cls: type, raw: dict[str, Any]):
-        field_names = {f.name for f in dataclass_fields(target_cls)}
+    def _make(target_cls: type, raw: dict[str, Any]) -> Any:
+        field_names = {f.name for f in dataclass_fields(cast(Any, target_cls))}
         return target_cls(**{k: v for k, v in raw.items() if k in field_names})
 
     @property

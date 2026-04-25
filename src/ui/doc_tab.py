@@ -46,7 +46,7 @@ def _index_file(file_path: Path, original_name: str = "") -> tuple:
             title_patterns=config.chunker.title_patterns,
         )
     else:
-        chunker = TextChunker(
+        chunker = TextChunker(  # type: ignore[assignment]
             chunk_size=st.session_state.chunk_size,
             chunk_overlap=st.session_state.chunk_overlap,
         )
@@ -180,7 +180,7 @@ def render_doc_management_tab() -> None:
         all_ids = []
 
     if all_ids:
-        file_groups: dict[str, list[str]] = {}
+        file_groups: dict[str, list[str]] = {}  # type: ignore[var-annotated]
         for doc_id in all_ids:
             parts = doc_id.split("_", 2)
             if len(parts) >= 2:
