@@ -5,7 +5,7 @@ import logging
 import streamlit as st
 
 from src.correction.types import ClaimVerdict, CorrectionResult, RetrievalQuality
-from src.generator.zhipu_llm import (
+from src.generator.siliconflow_llm import (
     LLMAuthError,
     LLMError,
     LLMQuotaError,

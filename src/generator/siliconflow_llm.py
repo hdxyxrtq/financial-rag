@@ -7,6 +7,26 @@ import httpx
 logger = logging.getLogger(__name__)
 
 
+class LLMError(Exception):
+    pass
+
+
+class LLMAuthError(LLMError):
+    pass
+
+
+class LLMQuotaError(LLMError):
+    pass
+
+
+class LLMTimeoutError(LLMError):
+    pass
+
+
+class LLMRateLimitError(LLMError):
+    pass
+
+
 class SiliconFlowLLM:
     """SiliconFlow LLM（OpenAI 兼容接口），用于 RAG 生成和 Query Rewriting。"""
 
