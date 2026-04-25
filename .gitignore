@@ -43,6 +43,13 @@ data/processed/
 # Benchmark 生成的临时数据
 screenshots/rag_eval_results.csv
 benchmark_results_v*.md
+benchmark_stderr.log
+benchmark_stdout.log
+
+# 已弃用的 Zhipu 模块（保留本地文件，不追踪）
+src/embeddings/zhipu_embedder.py
+src/generator/zhipu_llm.py
+src/reranker/zhipu_reranker.py
 
 # 原始文档数据（本地知识库）
 data/raw/
