@@ -49,5 +49,8 @@ benchmark_stdout.log
 # 本地模型文件
 models/
 
+# 论文源文件
+paper/
+
 # OpenCode 会话文件
 .sisyphus/
