@@ -435,10 +435,7 @@ class RAGPipeline:
 
         orig_scores = [r.score for r in results]
         max_s, min_s = max(orig_scores), min(orig_scores)
-        if max_s > min_s:
-            norm_orig = [(s - min_s) / (max_s - min_s) for s in orig_scores]
-        else:
-            norm_orig = [1.0] * len(orig_scores)
+        norm_orig = [(s - min_s) / (max_s - min_s) for s in orig_scores] if max_s > min_s else [1.0] * len(orig_scores)
 
         try:
             reranker = self._reranker
@@ -517,10 +514,7 @@ class RAGPipeline:
 
         orig_scores = [r.score for r in results]
         max_s, min_s = max(orig_scores), min(orig_scores)
-        if max_s > min_s:
-            norm_orig = [(s - min_s) / (max_s - min_s) for s in orig_scores]
-        else:
-            norm_orig = [1.0] * len(orig_scores)
+        norm_orig = [(s - min_s) / (max_s - min_s) for s in orig_scores] if max_s > min_s else [1.0] * len(orig_scores)
 
         try:
             reranker = self._reranker

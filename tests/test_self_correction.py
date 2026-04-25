@@ -18,7 +18,7 @@ class TestModuleImports:
     """Verify all correction modules can be imported without errors."""
 
     def test_import_types(self):
-        from src.correction.types import ClaimVerdict, CorrectionResult, RetrievalQuality
+        from src.correction.types import ClaimVerdict, CorrectionResult
 
         assert ClaimVerdict is not None
         assert CorrectionResult is not None
@@ -81,7 +81,7 @@ class TestSelfCorrectingPipeline:
     """Verify SelfCorrectingPipeline delegates to inner pipeline."""
 
     def test_query_delegates(self):
-        from src.config import Config, SelfCorrectionConfig
+        from src.config import Config
         from src.correction.pipeline import SelfCorrectingPipeline
 
         mock_pipeline = MagicMock()
@@ -135,7 +135,6 @@ class TestDataclassCreation:
     """Verify dataclasses can be instantiated."""
 
     def test_retrieval_quality_creation(self):
-        from src.correction.types import RetrievalQuality
 
         rq = RetrievalQuality(level="GOOD", top_score=0.9, avg_score=0.7, num_sources=5)
         assert rq.level == "GOOD"
@@ -169,7 +168,16 @@ class TestExternalVerifier:
         mock_response.status_code = 200
         mock_response.raise_for_status = MagicMock()
         mock_response.json.return_value = {
-            "choices": [{"message": {"content": '[{"claim": "营收5000万元", "supported": true, "evidence_quote": "公司营收5000万元"}]'}}],
+            "choices": [
+                {
+                    "message": {
+                        "content": (
+                            '[{"claim": "营收5000万元", "supported": true,'
+                            ' "evidence_quote": "公司营收5000万元"}]'
+                        )
+                    }
+                }
+            ],
         }
 
         with patch("src.correction.external_verifier.httpx.post", return_value=mock_response):
@@ -189,7 +197,16 @@ class TestExternalVerifier:
         mock_response.status_code = 200
         mock_response.raise_for_status = MagicMock()
         mock_response.json.return_value = {
-            "choices": [{"message": {"content": '[{"claim": "量子计算突破", "supported": false, "evidence_quote": "UNSUPPORTED"}]'}}],
+            "choices": [
+                {
+                    "message": {
+                        "content": (
+                            '[{"claim": "量子计算突破", "supported": false,'
+                            ' "evidence_quote": "UNSUPPORTED"}]'
+                        )
+                    }
+                }
+            ],
         }
 
         with patch("src.correction.external_verifier.httpx.post", return_value=mock_response):
@@ -221,7 +238,18 @@ class TestExternalVerifier:
         mock_response.status_code = 200
         mock_response.raise_for_status = MagicMock()
         mock_response.json.return_value = {
-            "choices": [{"message": {"content": '[{"claim": "营收5000万元", "supported": true, "evidence_quote": "营收5000万"}, {"claim": "量子计算突破", "supported": false, "evidence_quote": "UNSUPPORTED"}]'}}],
+            "choices": [
+                {
+                    "message": {
+                        "content": (
+                            '[{"claim": "营收5000万元", "supported": true,'
+                            ' "evidence_quote": "营收5000万"},'
+                            ' {"claim": "量子计算突破", "supported": false,'
+                            ' "evidence_quote": "UNSUPPORTED"}]'
+                        )
+                    }
+                }
+            ],
         }
 
         with patch("src.correction.external_verifier.httpx.post", return_value=mock_response):
@@ -597,7 +625,6 @@ class TestSelfCorrectingPipelineOrchestration:
         assert "correction" in result
 
     def test_query_correction_retry(self):
-        from unittest.mock import patch
 
         mock_pipeline = MagicMock()
         first_result = _make_pipeline_result(
@@ -653,7 +680,16 @@ class TestSelfCorrectingPipelineOrchestration:
         mock_response.status_code = 200
         mock_response.raise_for_status = MagicMock()
         mock_response.json.return_value = {
-            "choices": [{"message": {"content": '[{"claim": "量子计算突破", "supported": true, "evidence_quote": "已核实"}]'}}],
+            "choices": [
+                {
+                    "message": {
+                        "content": (
+                            '[{"claim": "量子计算突破", "supported": true,'
+                            ' "evidence_quote": "已核实"}]'
+                        )
+                    }
+                }
+            ],
         }
 
         with patch("src.correction.external_verifier.httpx.post", return_value=mock_response):

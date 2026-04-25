@@ -7,7 +7,7 @@ from src.correction.external_verifier import ExternalVerifier
 from src.correction.nli_verifier import NLIVerifier
 from src.correction.retrieval_gate import RetrievalGate
 from src.correction.rule_checker import RuleChecker
-from src.correction.types import CorrectionResult, RetrievalQuality
+from src.correction.types import CorrectionResult
 
 if TYPE_CHECKING:
     from src.config import SelfCorrectionConfig

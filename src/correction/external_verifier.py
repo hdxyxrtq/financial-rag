@@ -89,7 +89,7 @@ class ExternalVerifier:
         # LLMs may wrap JSON in markdown code fences
         if json_str.startswith("```"):
             lines = json_str.split("\n")
-            lines = [l for l in lines if not l.strip().startswith("```")]
+            lines = [line for line in lines if not line.strip().startswith("```")]
             json_str = "\n".join(lines)
 
         try:

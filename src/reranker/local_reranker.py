@@ -88,10 +88,7 @@ class LocalRreranker:
 
         scores = np.array(scores)
         min_s, max_s = scores.min(), scores.max()
-        if max_s > min_s:
-            scores = (scores - min_s) / (max_s - min_s)
-        else:
-            scores = np.ones_like(scores)
+        scores = (scores - min_s) / (max_s - min_s) if max_s > min_s else np.ones_like(scores)
 
         indexed = list(enumerate(scores.tolist()))
         indexed.sort(key=lambda x: x[1], reverse=True)

@@ -46,10 +46,7 @@ class RetrievalGate:
                 num_sources=0,
             )
 
-        if reranked_results:
-            scores = [r.score for r in reranked_results]
-        else:
-            scores = [r.score for r in results]
+        scores = [r.score for r in reranked_results] if reranked_results else [r.score for r in results]
 
         top_score = scores[0] if scores else 0.0
         avg_score = sum(scores) / len(scores) if scores else 0.0

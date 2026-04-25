@@ -11,8 +11,8 @@ import os
 from pathlib import Path
 
 from src.config import Config
-from src.embeddings.zhipu_embedder import ZhipuEmbedder
 from src.embeddings.siliconflow_embedder import SiliconFlowEmbedder
+from src.embeddings.zhipu_embedder import ZhipuEmbedder
 from src.loaders.base_loader import Document
 from src.loaders.pdf_loader import PDFLoader
 from src.loaders.qa_loader import QALoader
