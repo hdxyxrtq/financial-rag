@@ -176,8 +176,10 @@ def _render_eval_content(api_key: str) -> None:
                 progress_bar.progress(progress, text=f"Querying {i + 1}/{len(eval_samples)}...")
                 try:
                     result = pipeline.query(sample["question"])
-                    responses.append(result["answer"])
-                    all_contexts.append([src["content"] for src in result["sources"]])
+                    answer = result.get("answer", "")
+                    responses.append(str(answer) if answer else "")
+                    raw_sources: list[dict] = result.get("sources", [])  # type: ignore[assignment]
+                    all_contexts.append([str(src["content"]) for src in raw_sources])
                 except Exception as e:
                     status_text.warning(f"[WARN] Q{i + 1} failed: {e}")
                     responses.append("")

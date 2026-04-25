@@ -18,8 +18,8 @@ if TYPE_CHECKING:
 
     from src.config import RAGConfig, RerankerConfig
     from src.generator.query_rewriter import QueryRewriter
-    from src.generator.zhipu_llm import ZhipuLLM
-    from src.reranker.zhipu_reranker import ZhipuReranker
+    from src.generator.siliconflow_llm import SiliconFlowLLM
+    from src.reranker.local_reranker import LocalRreranker
 
 RetrieverType: TypeAlias = Retriever | HybridRetriever
 
@@ -68,9 +68,9 @@ class RAGPipeline:
     def __init__(
         self,
         retriever: Retriever | HybridRetriever,
-        llm: ZhipuLLM,
+        llm: SiliconFlowLLM,
         config: RAGConfig,
-        reranker: ZhipuReranker | None = None,
+        reranker: LocalRreranker | None = None,
         reranker_config: RerankerConfig | None = None,
         query_rewriter: QueryRewriter | None = None,
         cache: QueryCache | None = None,

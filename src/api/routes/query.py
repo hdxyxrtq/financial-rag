@@ -19,6 +19,7 @@ from src.api.schemas import (
 )
 from src.config import Config
 from src.correction.pipeline import SelfCorrectingPipeline
+from src.correction.types import CorrectionResult
 from src.metrics.collector import MetricsCollector
 from src.rag_pipeline import RAGPipeline
 from src.vectorstore.chroma_store import ChromaStore
@@ -59,8 +60,9 @@ async def query(
         latency_ms = (time.perf_counter() - t0) * 1000
 
         correction_data = None
-        if "correction" in result and result.get("correction") is not None:
-            c = result["correction"]
+        raw_correction = result.get("correction")
+        if raw_correction is not None and isinstance(raw_correction, CorrectionResult):
+            c = raw_correction
             correction_data = {
                 "passed": c.passed,
                 "flagged_claims": c.flagged_claims,

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 from functools import lru_cache
-from typing import cast
 
 from src.config import Config, RetrieverConfig
 from src.embeddings.siliconflow_embedder import SiliconFlowEmbedder
@@ -71,7 +70,7 @@ def get_pipeline() -> RAGPipeline:
     llm = _get_llm()
 
     base_retriever = Retriever(
-        cast(object, embedder),
+        embedder,
         store,
         RetrieverConfig(
             top_k=config.hybrid.vector_fetch_k,
@@ -93,9 +92,9 @@ def get_pipeline() -> RAGPipeline:
 
     return RAGPipeline(
         retriever=retriever,
-        llm=cast(object, llm),
+        llm=llm,
         config=config.rag,
-        reranker=cast(object, reranker) if reranker else None,
+        reranker=reranker if reranker else None,
         reranker_config=reranker_config,
         query_rewriter=query_rewriter,
     )

@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from src.config import RetrieverConfig
-    from src.embeddings.zhipu_embedder import ZhipuEmbedder
+    from src.embeddings.siliconflow_embedder import SiliconFlowEmbedder
     from src.vectorstore.chroma_store import ChromaStore
 
 
@@ -30,7 +30,7 @@ class RetrievalResult:
 class Retriever:
     """检索器：Embedding 查询 → ChromaDB 语义检索 → 结果过滤与排序。"""
 
-    def __init__(self, embedder: ZhipuEmbedder, vectorstore: ChromaStore, config: RetrieverConfig) -> None:
+    def __init__(self, embedder: SiliconFlowEmbedder, vectorstore: ChromaStore, config: RetrieverConfig) -> None:
         self._embedder = embedder
         self._vectorstore = vectorstore
         self._config = config

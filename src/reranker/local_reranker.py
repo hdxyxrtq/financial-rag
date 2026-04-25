@@ -8,8 +8,12 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from src.reranker.zhipu_reranker import RerankResult
+
+if TYPE_CHECKING:
+    from sentence_transformers import CrossEncoder
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +25,7 @@ class LocalRreranker:
     def __init__(self, model: str = DEFAULT_MODEL, device: str | None = None) -> None:
         self._model_name = model
         self._device = device
-        self._model = None
+        self._model: CrossEncoder | None = None
 
     def _load(self):
         if self._model is not None:
@@ -80,6 +84,7 @@ class LocalRreranker:
         if not documents:
             return []
 
+        assert self._model is not None
         pairs = [[query, doc] for doc in documents]
         scores = self._model.predict(pairs)
 

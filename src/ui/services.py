@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from typing import cast
 
 import streamlit as st
 
@@ -53,16 +52,15 @@ def _init_llm(_api_key: str, _model: str, _temperature: float, _max_tokens: int)
     )
 
 
-def _build_rag_pipeline(api_key: str) -> RAGPipeline:
+def _build_rag_pipeline(api_key: str) -> RAGPipeline | SelfCorrectingPipeline:
     embedder = _init_embedder(api_key)
     store = _init_vectorstore()
-    _typed_embedder = cast(object, embedder)
 
     strategy = st.session_state.retrieve_strategy
     retriever: Retriever | HybridRetriever
     if config.hybrid.enabled and strategy in ("hybrid", "bm25"):
         base_retriever = Retriever(
-            _typed_embedder,
+            embedder,
             store,
             RetrieverConfig(
                 top_k=config.hybrid.vector_fetch_k,
@@ -79,7 +77,7 @@ def _build_rag_pipeline(api_key: str) -> RAGPipeline:
         )
     else:
         retriever = Retriever(
-            _typed_embedder,
+            embedder,
             store,
             RetrieverConfig(
                 top_k=st.session_state.top_k,
@@ -96,7 +94,7 @@ def _build_rag_pipeline(api_key: str) -> RAGPipeline:
 
     reranker = None
     if st.session_state.reranker_enabled:
-        reranker = cast(object, LocalRreranker())
+        reranker = LocalRreranker()
 
     query_rewriter = None
     if st.session_state.query_rewrite:
@@ -116,7 +114,7 @@ def _build_rag_pipeline(api_key: str) -> RAGPipeline:
 
     pipeline = RAGPipeline(
         retriever,
-        cast(object, llm),
+        llm,
         config.rag,
         reranker=reranker,
         reranker_config=reranker_config,
@@ -125,7 +123,7 @@ def _build_rag_pipeline(api_key: str) -> RAGPipeline:
     )
 
     if getattr(st.session_state, "self_correction_enabled", False):
-        pipeline = _wrap_self_correction(pipeline, api_key)
+        return _wrap_self_correction(pipeline, api_key)
 
     return pipeline
 
