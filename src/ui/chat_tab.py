@@ -144,7 +144,7 @@ def render_chat_tab() -> None:
 
                 sources: list[dict] = []
                 answer = ""
-                correction_data = None
+                correction_data: CorrectionResult | None = None
 
                 if use_correction:
                     status.update(label="Generating and verifying response...")
