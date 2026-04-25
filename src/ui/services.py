@@ -1,16 +1,18 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from typing import cast
 
 import streamlit as st
 
 from src.cache import QueryCache
 from src.config import Config, RetrieverConfig
-from src.embeddings.zhipu_embedder import ZhipuEmbedder
+from src.correction.pipeline import SelfCorrectingPipeline
+from src.embeddings.siliconflow_embedder import SiliconFlowEmbedder
 from src.generator.query_rewriter import QueryRewriter
-from src.generator.zhipu_llm import ZhipuLLM
+from src.generator.siliconflow_llm import SiliconFlowLLM
 from src.rag_pipeline import RAGPipeline
-from src.reranker.zhipu_reranker import ZhipuReranker
+from src.reranker.local_reranker import LocalRreranker
 from src.retriever.bm25_retriever import BM25Retriever
 from src.retriever.hybrid_retriever import HybridRetriever
 from src.retriever.retriever import Retriever
@@ -34,17 +36,16 @@ def _init_bm25_retriever() -> BM25Retriever:
 
 
 @st.cache_resource
-def _init_embedder(_api_key: str) -> ZhipuEmbedder:
-    return ZhipuEmbedder(
+def _init_embedder(_api_key: str) -> SiliconFlowEmbedder:
+    return SiliconFlowEmbedder(
         api_key=_api_key,
         model=config.embedding.model,
-        batch_size=config.embedding.batch_size,
     )
 
 
 @st.cache_resource
-def _init_llm(_api_key: str, _model: str, _temperature: float, _max_tokens: int) -> ZhipuLLM:
-    return ZhipuLLM(
+def _init_llm(_api_key: str, _model: str, _temperature: float, _max_tokens: int) -> SiliconFlowLLM:
+    return SiliconFlowLLM(
         api_key=_api_key,
         model=_model,
         temperature=_temperature,
@@ -55,12 +56,13 @@ def _init_llm(_api_key: str, _model: str, _temperature: float, _max_tokens: int)
 def _build_rag_pipeline(api_key: str) -> RAGPipeline:
     embedder = _init_embedder(api_key)
     store = _init_vectorstore()
+    _typed_embedder = cast(object, embedder)
 
     strategy = st.session_state.retrieve_strategy
     retriever: Retriever | HybridRetriever
     if config.hybrid.enabled and strategy in ("hybrid", "bm25"):
         base_retriever = Retriever(
-            embedder,
+            _typed_embedder,
             store,
             RetrieverConfig(
                 top_k=config.hybrid.vector_fetch_k,
@@ -77,7 +79,7 @@ def _build_rag_pipeline(api_key: str) -> RAGPipeline:
         )
     else:
         retriever = Retriever(
-            embedder,
+            _typed_embedder,
             store,
             RetrieverConfig(
                 top_k=st.session_state.top_k,
@@ -94,7 +96,7 @@ def _build_rag_pipeline(api_key: str) -> RAGPipeline:
 
     reranker = None
     if st.session_state.reranker_enabled:
-        reranker = ZhipuReranker(api_key=api_key)
+        reranker = cast(object, LocalRreranker())
 
     query_rewriter = None
     if st.session_state.query_rewrite:
@@ -112,12 +114,27 @@ def _build_rag_pipeline(api_key: str) -> RAGPipeline:
     if st.session_state.reranker_enabled and config.reranker is not None:
         reranker_config = replace(config.reranker, top_n=st.session_state.reranker_top_n)
 
-    return RAGPipeline(
+    pipeline = RAGPipeline(
         retriever,
-        llm,
+        cast(object, llm),
         config.rag,
         reranker=reranker,
         reranker_config=reranker_config,
         query_rewriter=query_rewriter,
         cache=cache,
+    )
+
+    if getattr(st.session_state, "self_correction_enabled", False):
+        pipeline = _wrap_self_correction(pipeline, api_key)
+
+    return pipeline
+
+
+def _wrap_self_correction(pipeline: RAGPipeline, api_key: str) -> SelfCorrectingPipeline:
+    return SelfCorrectingPipeline(
+        pipeline=pipeline,
+        config=config.self_correction,
+        api_key=config.siliconflow_api_key,
+        base_url=config.self_correction.siliconflow_base_url,
+        model=config.self_correction.siliconflow_model,
     )

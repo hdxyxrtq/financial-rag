@@ -18,6 +18,58 @@ from src.ui.services import _build_rag_pipeline
 logger = logging.getLogger(__name__)
 
 
+def _render_correction_info(correction: dict) -> None:
+    passed = correction.get("passed", True)
+    confidence = correction.get("confidence", 0.0)
+    flagged = correction.get("flagged_claims", [])
+    layer_results = correction.get("layer_results", {})
+
+    status_icon = "✅" if passed else "⚠️"
+    status_text = "通过" if passed else "有疑点"
+    status_color = "#22C55E" if passed else "#EAB308"
+
+    with st.expander(f"{status_icon} 自我修正报告（置信度: {confidence:.0%}）", expanded=not passed):
+        st.markdown(
+            f'<div style="color:{status_color};font-size:0.85rem;font-weight:600;">'
+            f"修正结果: {status_text}"
+            "</div>",
+            unsafe_allow_html=True,
+        )
+
+        if flagged:
+            st.markdown("**标记的断言:**")
+            for claim in flagged:
+                st.markdown(f"- 🚫 {claim}")
+
+        if "retrieval_quality" in layer_results:
+            rq = layer_results["retrieval_quality"]
+            st.markdown(
+                f"**检索质量:** {rq.level} (top score: {rq.top_score:.2f}, "
+                f"avg: {rq.avg_score:.2f}, sources: {rq.num_sources})"
+            )
+
+        if "retries" in layer_results:
+            st.markdown(f"**重试次数:** {layer_results['retries']}")
+
+        if "rule_issues" in layer_results:
+            issues = layer_results["rule_issues"]
+            if issues:
+                st.markdown(f"**规则检查问题:** {len(issues)} 项")
+                for issue in issues[:5]:
+                    severity = issue.get("severity", "MEDIUM")
+                    st.markdown(f"  - [{severity}] {issue.get('message', '')}")
+
+        if "nli" in layer_results:
+            verdicts = layer_results["nli"]
+            unsupported_count = sum(1 for v in verdicts if not v.supported)
+            st.markdown(f"**NLI 验证:** {len(verdicts)} 条断言, {unsupported_count} 条未通过")
+
+        if "external" in layer_results:
+            ext = layer_results["external"]
+            ext_unsupported = sum(1 for v in ext if not v.supported)
+            st.markdown(f"**外部验证:** {len(ext)} 条, {ext_unsupported} 条未通过")
+
+
 def _get_messages() -> list[dict]:
     cid = st.session_state.current_conversation_id
     conversations: dict = st.session_state.conversations
@@ -51,6 +103,8 @@ def render_chat_tab() -> None:
                             content = _highlight_keywords(content, keywords)
                         st.markdown(content)
                         st.divider()
+            if msg["role"] == "assistant" and msg.get("correction"):
+                _render_correction_info(msg["correction"])
 
     if st.session_state.retrieval_results:
         with st.expander("Retrieval Details", expanded=False):
@@ -85,36 +139,56 @@ def render_chat_tab() -> None:
             status = st.status("Retrieving relevant documents...")
             try:
                 pipeline = _build_rag_pipeline(api_key=api_key)
+                use_correction = getattr(st.session_state, "self_correction_enabled", False)
 
                 sources = []
-                answer_parts = []
+                answer = ""
+                correction_data = None
 
-                status.update(label="Generating response...")
-                answer_placeholder = st.empty()
+                if use_correction:
+                    status.update(label="Generating and verifying response...")
+                    result = pipeline.query(
+                        question=prompt,
+                        chat_history=[m for m in messages[:-1]],
+                    )
+                    answer = result.get("answer", "")
+                    sources = result.get("sources", [])
+                    st.session_state.retrieval_results = sources
+                    if "correction" in result and result["correction"] is not None:
+                        correction_data = result["correction"]
+                    st.markdown(answer)
+                    status.update(label="Response complete", state="complete")
+                else:
+                    answer_parts = []
+                    status.update(label="Generating response...")
+                    answer_placeholder = st.empty()
 
-                for chunk in pipeline.stream_query(
-                    question=prompt,
-                    chat_history=[m for m in messages[:-1]],
-                ):
-                    if chunk["type"] == "sources":
-                        sources = chunk["sources"]
-                        st.session_state.retrieval_results = sources
-                    elif chunk["type"] == "answer":
-                        answer_parts.append(chunk["content"])
+                    for chunk in pipeline.stream_query(
+                        question=prompt,
+                        chat_history=[m for m in messages[:-1]],
+                    ):
+                        if chunk["type"] == "sources":
+                            sources = chunk["sources"]
+                            st.session_state.retrieval_results = sources
+                        elif chunk["type"] == "answer":
+                            answer_parts.append(chunk["content"])
+                            answer_placeholder.markdown("".join(answer_parts) + "▌")
+                    answer = "".join(answer_parts)
+                    answer_placeholder.markdown(answer)
+                    status.update(label="Response complete", state="complete")
 
-                        answer_placeholder.markdown("".join(answer_parts) + "▌")
-                answer = "".join(answer_parts)
-                answer_placeholder.markdown(answer)
-                status.update(label="Response complete", state="complete")
+                if correction_data:
+                    _render_correction_info(correction_data)
 
-                messages.append(
-                    {
-                        "role": "assistant",
-                        "content": answer,
-                        "sources": sources,
-                        "query": prompt,
-                    }
-                )
+                msg_data = {
+                    "role": "assistant",
+                    "content": answer,
+                    "sources": sources,
+                    "query": prompt,
+                }
+                if correction_data:
+                    msg_data["correction"] = correction_data
+                messages.append(msg_data)
 
             except LLMAuthError as e:
                 logger.error("LLM Auth 错误: %s", e, exc_info=True)
@@ -124,7 +198,7 @@ def render_chat_tab() -> None:
                 messages.append(msg)
             except LLMQuotaError as e:
                 logger.error("LLM 额度耗尽: %s", e, exc_info=True)
-                st.error("API 额度已用完，请到 [智谱开放平台](https://open.bigmodel.cn/) 充值或更换 Key")
+                st.error("API 额度已用完，请到 SiliconFlow 控制台检查用量或更换 Key")
                 status.update(label="Quota exceeded", state="error")
                 msg = {"role": "assistant", "content": "抱歉，API 额度已用完，请充值或更换 Key。", "sources": []}
                 messages.append(msg)

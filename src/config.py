@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 
 @dataclass(frozen=True)
 class LLMConfig:
-    model: str = "glm-4-flash"
+    model: str = "Qwen/Qwen3-8B"
     temperature: float = 0.7
     max_tokens: int = 2048
     top_p: float = 0.9
@@ -27,7 +27,7 @@ class LLMConfig:
 
 @dataclass(frozen=True)
 class EmbeddingConfig:
-    model: str = "embedding-3"
+    model: str = "BAAI/bge-large-zh-v1.5"
     batch_size: int = 20
 
     def __post_init__(self):
@@ -109,6 +109,16 @@ class CacheConfig:
     max_size: int = 100
 
 
+@dataclass(frozen=True)
+class SelfCorrectionConfig:
+    enabled: bool = False
+    max_retries: int = 2
+    rerank_threshold_good: float = 0.7
+    rerank_threshold_weak: float = 0.3
+    siliconflow_base_url: str = "https://api.siliconflow.cn/v1"
+    siliconflow_model: str = "Qwen/Qwen3-8B"
+
+
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
@@ -137,6 +147,7 @@ class Config:
     _hybrid: HybridConfig
     _reranker: RerankerConfig
     _cache: CacheConfig
+    _self_correction: SelfCorrectionConfig
     _app: AppConfig
 
     def __init__(self) -> None:
@@ -162,6 +173,7 @@ class Config:
             if isinstance(tmp, dict):
                 cache_raw = tmp
         self._cache = self._make(CacheConfig, cache_raw)
+        self._self_correction = self._make(SelfCorrectionConfig, cast(dict[str, Any], raw.get("self_correction") or {}))
         # Safe retrieval of logging level from YAML
         log_level = "INFO"
         if isinstance(raw, dict):
@@ -213,8 +225,16 @@ class Config:
 
     @property
     def api_key(self) -> str | None:
-        return os.environ.get("ZHIPU_API_KEY")
+        return os.environ.get("SILICONFLOW_API_KEY")
 
     @property
     def cache(self) -> CacheConfig:
         return self._cache
+
+    @property
+    def self_correction(self) -> SelfCorrectionConfig:
+        return self._self_correction
+
+    @property
+    def siliconflow_api_key(self) -> str | None:
+        return os.environ.get("SILICONFLOW_API_KEY")

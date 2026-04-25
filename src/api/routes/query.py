@@ -17,6 +17,8 @@ from src.api.schemas import (
     QueryRequest,
     QueryResponse,
 )
+from src.config import Config
+from src.correction.pipeline import SelfCorrectingPipeline
 from src.metrics.collector import MetricsCollector
 from src.rag_pipeline import RAGPipeline
 from src.vectorstore.chroma_store import ChromaStore
@@ -34,22 +36,46 @@ async def query(
     """同步查询：检索 + 重排序（可选）+ LLM 生成。"""
     t0 = time.perf_counter()
     try:
+        effective_pipeline: RAGPipeline | SelfCorrectingPipeline = pipeline
+        if body.self_correction:
+            config = Config()
+            effective_pipeline = SelfCorrectingPipeline(
+                pipeline=pipeline,
+                config=config.self_correction,
+                api_key=config.siliconflow_api_key,
+                base_url=config.self_correction.siliconflow_base_url,
+                model=config.self_correction.siliconflow_model,
+            )
+
         kwargs: dict = {}
         if body.top_k is not None:
             kwargs["top_k"] = body.top_k
 
-        result = await pipeline.aquery(
+        result = await effective_pipeline.aquery(
             question=body.question,
             chat_history=body.chat_history,
             **kwargs,
         )
         latency_ms = (time.perf_counter() - t0) * 1000
 
+        correction_data = None
+        if "correction" in result and result.get("correction") is not None:
+            c = result["correction"]
+            correction_data = {
+                "passed": c.passed,
+                "flagged_claims": c.flagged_claims,
+                "confidence": c.confidence,
+                "layer_results": {
+                    k: str(v) for k, v in (c.layer_results or {}).items()
+                },
+            }
+
         return QueryResponse(
             answer=result.get("answer", ""),
             sources=result.get("sources", []),
             cached=False,
             latency_ms=round(latency_ms, 2),
+            correction=correction_data,
         )
     except Exception as e:
         logger.error("查询失败: %s", e, exc_info=True)

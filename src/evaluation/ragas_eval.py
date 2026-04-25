@@ -17,13 +17,14 @@ class RAGEvaluator:
     def __init__(
         self,
         api_key: str,
-        model: str = "glm-4-flash",
-        embedding_model: str = "embedding-3",
+        model: str = "Qwen/Qwen3-8B",
+        embedding_model: str = "BAAI/bge-large-zh-v1.5",
+        base_url: str = "https://api.siliconflow.cn/v1",
     ) -> None:
         self._api_key = api_key
         self._model = model
         self._embedding_model = embedding_model
-        self._base_url = "https://open.bigmodel.cn/api/paas/v4"
+        self._base_url = base_url
         self._llm: ChatOpenAI | None = None
 
     def _get_llm(self) -> ChatOpenAI:

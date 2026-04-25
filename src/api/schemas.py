@@ -17,6 +17,7 @@ class QueryRequest(BaseModel):
     top_k: int | None = Field(default=None, ge=1, le=50, description="检索返回数量")
     strategy: str | None = Field(default=None, description="检索策略: vector / bm25 / hybrid")
     use_reranker: bool | None = Field(default=None, description="是否启用重排序")
+    self_correction: bool = Field(default=False, description="是否启用自我修正")
 
 
 class SourceItem(BaseModel):
@@ -34,6 +35,7 @@ class QueryResponse(BaseModel):
     sources: list[SourceItem] = Field(default_factory=list)
     cached: bool = False
     latency_ms: float = 0.0
+    correction: dict | None = Field(default=None, description="自我修正报告（启用时返回）")
 
 
 # ---------------------------------------------------------------------------

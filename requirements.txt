@@ -1,8 +1,8 @@
 # Web 框架
 streamlit>=1.28.0
 
-# 智谱 AI SDK
-zhipuai>=2.0.0
+# HTTP 客户端（SiliconFlow API 调用）
+httpx>=0.27.0
 
 # 向量数据库
 chromadb>=0.4.22

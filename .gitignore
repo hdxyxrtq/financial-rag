@@ -42,9 +42,13 @@ data/processed/
 
 # Benchmark 生成的临时数据
 screenshots/rag_eval_results.csv
+benchmark_results_v*.md
 
 # 原始文档数据（本地知识库）
 data/raw/
 
 # 本地模型文件
 models/
+
+# OpenCode 会话文件
+.sisyphus/

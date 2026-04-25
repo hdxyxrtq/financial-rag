@@ -7,10 +7,12 @@
 import argparse
 import hashlib
 import logging
+import os
 from pathlib import Path
 
 from src.config import Config
 from src.embeddings.zhipu_embedder import ZhipuEmbedder
+from src.embeddings.siliconflow_embedder import SiliconFlowEmbedder
 from src.loaders.base_loader import Document
 from src.loaders.pdf_loader import PDFLoader
 from src.loaders.qa_loader import QALoader
@@ -27,22 +29,27 @@ ChunkerType = TextChunker | TitleBasedChunker
 
 
 class IndexBuilder:
-    """文档索引构建器。
-
-    完整 Pipeline：加载文档 → 清洗 → 分块 → Embedding → 存储到 ChromaDB。
-    """
 
     def __init__(self, api_key: str | None = None) -> None:
         self._config = Config()
-        key = api_key or self._config.api_key
-        if not key:
-            raise ValueError("未提供 API Key，请通过参数传入或设置 ZHIPU_API_KEY 环境变量")
 
-        self._embedder = ZhipuEmbedder(
-            api_key=key,
-            model=self._config.embedding.model,
-            batch_size=self._config.embedding.batch_size,
-        )
+        siliconflow_key = os.environ.get("SILICONFLOW_API_KEY", "")
+        if siliconflow_key:
+            self._embedder = SiliconFlowEmbedder(
+                api_key=siliconflow_key,
+                model="BAAI/bge-large-zh-v1.5",
+            )
+            logger.info("使用 SiliconFlow BAAI/bge-large-zh-v1.5 构建索引")
+        else:
+            key = api_key or self._config.api_key
+            if not key:
+                raise ValueError("未提供 API Key，请设置 SILICONFLOW_API_KEY 或 ZHIPU_API_KEY 环境变量")
+            self._embedder = ZhipuEmbedder(
+                api_key=key,
+                model=self._config.embedding.model,
+                batch_size=self._config.embedding.batch_size,
+            )
+            logger.info("使用智谱 embedding-3 构建索引")
         self._store = ChromaStore(
             persist_directory=self._config.vectorstore.persist_directory,
             collection_name=self._config.vectorstore.collection_name,

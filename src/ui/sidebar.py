@@ -92,9 +92,9 @@ def render_sidebar() -> None:
         st.subheader("MODEL PARAMETERS")
         model = st.selectbox(
             "Model",
-            ["glm-4-flash", "glm-4", "glm-4-plus"],
-            index=["glm-4-flash", "glm-4", "glm-4-plus"].index(config.llm.model)
-            if config.llm.model in ("glm-4-flash", "glm-4", "glm-4-plus")
+            ["Qwen/Qwen3-8B", "Qwen/Qwen2.5-7B-Instruct", "internlm/internlm2_5-7b-chat"],
+            index=["Qwen/Qwen3-8B", "Qwen/Qwen2.5-7B-Instruct", "internlm/internlm2_5-7b-chat"].index(config.llm.model)
+            if config.llm.model in ("Qwen/Qwen3-8B", "Qwen/Qwen2.5-7B-Instruct", "internlm/internlm2_5-7b-chat")
             else 0,
         )
         temperature = st.slider("Temperature", 0.0, 1.0, config.llm.temperature, 0.1)
@@ -130,6 +130,19 @@ def render_sidebar() -> None:
             help="启用语义缓存，相似问题直接返回缓存结果，减少 API 调用",
         )
 
+        self_correction_enabled = st.checkbox(
+            "自我修正",
+            value=st.session_state.self_correction_enabled,
+            help="启用多层幻觉检测与修正：检索质量门控 → 规则预检 → NLI 验证 → 外部模型二判定",
+        )
+        if self_correction_enabled:
+            st.markdown(
+                '<div style="color:#C9A84C;font-size:0.72rem;padding:0.2rem 0;">'
+                "四层检测已启用：L0 门控 · L2 规则 · L3 NLI · L4 外部"
+                "</div>",
+                unsafe_allow_html=True,
+            )
+
         st.markdown('<hr style="border-color:rgba(201,168,76,0.15);margin:0.6rem 0;">', unsafe_allow_html=True)
         st.subheader("CHUNKING")
         chunk_size = st.slider("Chunk Size", 128, 2048, config.chunker.chunk_size, 64)
@@ -147,6 +160,7 @@ def render_sidebar() -> None:
         st.session_state.reranker_top_n = reranker_top_n
         st.session_state.query_rewrite = query_rewrite_enabled
         st.session_state.cache_enabled = cache_enabled
+        st.session_state.self_correction_enabled = self_correction_enabled
         st.session_state.chunk_size = chunk_size
         st.session_state.chunk_overlap = chunk_overlap
 
@@ -194,7 +208,7 @@ def render_sidebar() -> None:
         st.markdown(
             '<div class="branding-footer">'
             '<div class="brand-name">Financial RAG</div>'
-            '<div class="brand-version">v1.0 // Powered by GLM</div>'
+            '<div class="brand-version">v1.0 // Powered by SiliconFlow</div>'
             "</div>",
             unsafe_allow_html=True,
         )

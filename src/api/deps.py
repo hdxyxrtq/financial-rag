@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import logging
 from functools import lru_cache
+from typing import cast
 
 from src.config import Config, RetrieverConfig
-from src.embeddings.zhipu_embedder import ZhipuEmbedder
+from src.embeddings.siliconflow_embedder import SiliconFlowEmbedder
 from src.generator.query_rewriter import QueryRewriter
-from src.generator.zhipu_llm import ZhipuLLM
+from src.generator.siliconflow_llm import SiliconFlowLLM
 from src.rag_pipeline import RAGPipeline
-from src.reranker.zhipu_reranker import ZhipuReranker
+from src.reranker.local_reranker import LocalRreranker
 from src.retriever.bm25_retriever import BM25Retriever
 from src.retriever.hybrid_retriever import HybridRetriever
 from src.retriever.retriever import Retriever
@@ -34,25 +35,24 @@ def _get_store() -> ChromaStore:
 
 
 @lru_cache(maxsize=1)
-def _get_embedder() -> ZhipuEmbedder:
+def _get_embedder() -> SiliconFlowEmbedder:
     config = _get_config()
     api_key = config.api_key
     if not api_key:
-        raise ValueError("ZHIPU_API_KEY 未配置，请设置环境变量或 .env 文件")
-    return ZhipuEmbedder(
+        raise ValueError("SILICONFLOW_API_KEY 未配置，请设置环境变量或 .env 文件")
+    return SiliconFlowEmbedder(
         api_key=api_key,
         model=config.embedding.model,
-        batch_size=config.embedding.batch_size,
     )
 
 
 @lru_cache(maxsize=1)
-def _get_llm() -> ZhipuLLM:
+def _get_llm() -> SiliconFlowLLM:
     config = _get_config()
     api_key = config.api_key
     if not api_key:
-        raise ValueError("ZHIPU_API_KEY 未配置，请设置环境变量或 .env 文件")
-    return ZhipuLLM(
+        raise ValueError("SILICONFLOW_API_KEY 未配置，请设置环境变量或 .env 文件")
+    return SiliconFlowLLM(
         api_key=api_key,
         model=config.llm.model,
         temperature=config.llm.temperature,
@@ -61,23 +61,17 @@ def _get_llm() -> ZhipuLLM:
 
 
 def get_store() -> ChromaStore:
-    """FastAPI 依赖：获取 ChromaStore 实例。"""
     return _get_store()
 
 
 def get_pipeline() -> RAGPipeline:
-    """FastAPI 依赖：构建 RAGPipeline 实例。
-
-    默认使用 hybrid 策略，不带 Reranker。
-    """
     config = _get_config()
     embedder = _get_embedder()
     store = _get_store()
     llm = _get_llm()
 
-    # 构建 Retriever（默认 hybrid）
     base_retriever = Retriever(
-        embedder,
+        cast(object, embedder),
         store,
         RetrieverConfig(
             top_k=config.hybrid.vector_fetch_k,
@@ -92,18 +86,16 @@ def get_pipeline() -> RAGPipeline:
         score_threshold=config.retriever.score_threshold,
     )
 
-    # Reranker（默认关闭）
-    reranker = ZhipuReranker(api_key=config.api_key or "") if config.reranker.enabled else None
-    reranker_config = config.reranker if config.reranker.enabled and config.api_key else None
+    reranker = LocalRreranker() if config.reranker.enabled else None
+    reranker_config = config.reranker if config.reranker.enabled else None
 
-    # Query Rewriter（默认关闭）
     query_rewriter = QueryRewriter(llm=llm) if config.rag.query_rewrite else None
 
     return RAGPipeline(
         retriever=retriever,
-        llm=llm,
+        llm=cast(object, llm),
         config=config.rag,
-        reranker=reranker,
+        reranker=cast(object, reranker) if reranker else None,
         reranker_config=reranker_config,
         query_rewriter=query_rewriter,
     )

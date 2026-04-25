@@ -1,14 +1,13 @@
 # LLM 模型配置
 llm:
-  model: "glm-4-flash"        # 模型名称（glm-4-flash / glm-4 / glm-4-plus）
-  temperature: 0.7             # 生成温度
-  max_tokens: 2048             # 最大生成 token 数
-  top_p: 0.9                   # nucleus sampling
+  model: "Qwen/Qwen3-8B"      # SiliconFlow 免费模型
+  temperature: 0.7
+  max_tokens: 2048
+  top_p: 0.9
 
-# Embedding 模型配置
 embedding:
-  model: "embedding-3"         # Embedding 模型名称
-  batch_size: 20               # 批量处理大小
+  model: "BAAI/bge-large-zh-v1.5"  # SiliconFlow 免费中文 Embedding
+  batch_size: 20
 
 # 文本分块配置
 chunker:
@@ -69,3 +68,12 @@ cache:
   enabled: false
   similarity_threshold: 0.95
   max_size: 100
+
+# 自我修正配置
+self_correction:
+  enabled: false
+  max_retries: 2
+  rerank_threshold_good: 0.7
+  rerank_threshold_weak: 0.3
+  siliconflow_base_url: "https://api.siliconflow.cn/v1"
+  siliconflow_model: "Qwen/Qwen3-8B"
