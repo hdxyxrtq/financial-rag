@@ -141,7 +141,7 @@ def render_chat_tab() -> None:
                 pipeline = _build_rag_pipeline(api_key=api_key)
                 use_correction = getattr(st.session_state, "self_correction_enabled", False)
 
-                sources = []
+                sources: list[dict] = []
                 answer = ""
                 correction_data = None
 
@@ -151,11 +151,11 @@ def render_chat_tab() -> None:
                         question=prompt,
                         chat_history=[m for m in messages[:-1]],
                     )
-                    answer = result.get("answer", "")
-                    sources = result.get("sources", [])
+                    answer = str(result.get("answer", ""))
+                    sources = result.get("sources", [])  # type: ignore[assignment]
                     st.session_state.retrieval_results = sources
                     if "correction" in result and result["correction"] is not None:
-                        correction_data = result["correction"]
+                        correction_data = dict(result["correction"])
                     st.markdown(answer)
                     status.update(label="Response complete", state="complete")
                 else:
